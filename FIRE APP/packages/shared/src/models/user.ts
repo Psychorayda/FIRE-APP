@@ -94,3 +94,16 @@ export function updateUser(db: DatabaseType, id: string, input: UpdateUserInput)
 
   return updated;
 }
+
+/**
+ * 获取第一个用户（用于启动时判断是否首次启动）
+ * Get first user (for first-launch detection on startup)
+ * @param db 数据库实例 / Database instance
+ * @returns 第一个未删除的用户或 null / First non-deleted user or null
+ */
+export function getFirstUser(db: DatabaseType): User | null {
+  const row = db.prepare(
+    'SELECT * FROM users WHERE deleted_flag = 0 LIMIT 1'
+  ).get() as User | undefined;
+  return row ?? null;
+}

@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createDatabase, closeDatabase } from '../../src/db/connection.js';
 import { initSchema } from '../../src/db/schema.js';
-import { createUser, getUser, updateUser } from '../../src/models/user.js';
+import { createUser, getUser, updateUser, getFirstUser } from '../../src/models/user.js';
 import type { Database as DatabaseType } from 'better-sqlite3';
 
 describe('user model', () => {
@@ -64,5 +64,18 @@ describe('user model', () => {
     expect(updated.default_withdrawal_rate).toBe(400);
     expect(updated.default_expected_return).toBe(500);
     expect(updated.sync_version).toBe(1);
+  });
+
+  it('getFirstUser: 无用户 → null（首次启动场景）', () => {
+    const user = getFirstUser(db);
+    expect(user).toBeNull();
+  });
+
+  it('getFirstUser: 有用户 → 返回第一条未删除记录', () => {
+    createUser(db, { id: 'user-a', display_name: '用户A' });
+    createUser(db, { id: 'user-b', display_name: '用户B' });
+    const user = getFirstUser(db);
+    expect(user).not.toBeNull();
+    expect(user!.display_name).toBe('用户A');
   });
 });
