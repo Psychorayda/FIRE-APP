@@ -3,6 +3,7 @@
 import { app, BrowserWindow } from 'electron';
 import { join } from 'path';
 import { initDatabase, closeAppDatabase } from './db-manager.js';
+import { registerIpcHandlers } from './ipc-handlers.js';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -39,7 +40,10 @@ app.whenReady().then(() => {
   // 1. 初始化数据库
   initDatabase();
 
-  // 2. 创建窗口
+  // 2. 注册 IPC handlers
+  registerIpcHandlers();
+
+  // 3. 创建窗口
   createWindow();
 
   app.on('activate', () => {
