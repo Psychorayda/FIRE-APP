@@ -1,7 +1,17 @@
-// 应用根组件 / App root component
+// 应用根组件：挂载 RouterProvider + 启动时初始化 app-store
+// App root: mount RouterProvider + initialize app-store on startup
 
-import { TestPage } from './pages/TestPage';
+import { useEffect } from 'react';
+import { RouterProvider } from 'react-router-dom';
+import { router } from './router/index.js';
+import { useAppStore } from './stores/app-store.js';
 
 export default function App() {
-  return <TestPage />;
+  const initialize = useAppStore((s) => s.initialize);
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  return <RouterProvider router={router} />;
 }
