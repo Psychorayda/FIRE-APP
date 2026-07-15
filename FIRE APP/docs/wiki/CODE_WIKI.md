@@ -5,6 +5,7 @@
 > **代码基准**: `fire-app/` (TypeScript + better-sqlite3 + vitest)
 > **知识库基础**: `fire-knowledge-schema.yaml` v5.0
 > **原则**: 代码为权威（Code is Authority）
+> **导航**: 本页是 Wiki 主页 | [项目概览 →](01-overview.md)
 
 ---
 
