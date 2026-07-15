@@ -1,6 +1,6 @@
 # Task 8 端到端验证 — 操作步骤设计
 
-> **关联计划：** `docs/superpowers/plans/2026-07-15-fire-app-desktop-mvp-milestone1.md` — Task 8: 端到端验证
+> **关联计划：** `docs/superpowers/plans/2026-07-15-@fire-app/desktop-mvp-milestone1.md` — Task 8: 端到端验证
 > **运行环境：** Windows（PowerShell）
 > **目的：** 为计划的 Task 8 提供具体、可操作的验证步骤，每步含操作命令、预期结果、通过标准和故障排查
 
@@ -38,6 +38,19 @@
 - pnpm install 报错 → 检查 `pnpm-workspace.yaml` 配置，确认 `packages/*` 和 `apps/*` 路径正确
 
 ---
+
+### 实际遇到的问题（验证记录）
+
+在 Windows 环境实际执行阶段 0 时，遇到了以下 6 个问题：
+
+1. **pnpm 未安装** — 系统只有 npm，需先 `npm install -g pnpm`
+2. **pnpm.onlyBuiltDependencies 弃用** — pnpm 11 不再读取 package.json 中的 `pnpm` 字段，需迁移到 `pnpm-workspace.yaml`
+3. **minimumReleaseAge 拦截** — pnpm 11 供应链安全策略拒绝最近发布的包，需添加 `minimumReleaseAge: 0`
+4. **Electron 二进制未下载** — install scripts 被拦截导致 Electron postinstall 未执行，需手动设置镜像源并运行 `node node_modules/electron/install.js`
+5. **better-sqlite3 ABI 不匹配** — 原生模块针对系统 Node.js 编译，需 `npx @electron/rebuild -f` 重新编译
+6. **preload 脚本未加载** — Electron 31 默认 `sandbox: true`，需设置 `sandbox: false`
+
+这些问题已通过项目配置修复（.npmrc 镜像源、postinstall 自动 rebuild、pnpm-workspace.yaml 配置、sandbox: false），详见 README 故障排查章节。
 
 ## 阶段 1：启动开发模式
 
@@ -84,14 +97,14 @@
 
 | 步骤 | 操作 | 预期结果 | 通过标准 |
 |------|------|----------|----------|
-| 4.1 定位 DB 文件 | PowerShell 运行：`Get-ChildItem -Path "$env:APPDATA\fire-app-desktop\fire-app\data\fire.db"` | 文件存在 | 文件存在，大小 > 0（通常 > 12KB） |
-| 4.2 验证用户表数据 | `sqlite3 "$env:APPDATA\fire-app-desktop\fire-app\data\fire.db" "SELECT id, display_name, base_currency, is_china_market FROM users;"` | 输出一行：测试用户记录，display_name="测试用户"，base_currency="CNY"，is_china_market=1 | 查询返回 1 行，字段值正确 |
-| 4.3 验证种子分类数 | `sqlite3 "$env:APPDATA\fire-app-desktop\fire-app\data\fire.db" "SELECT COUNT(*) FROM categories;"` | 输出 `18` | 计数 = 18 |
+| 4.1 定位 DB 文件 | PowerShell 运行：`Get-ChildItem -Path "$env:APPDATA\@fire-app/desktop\fire-app\data\fire.db"` | 文件存在 | 文件存在，大小 > 0（通常 > 12KB） |
+| 4.2 验证用户表数据 | `sqlite3 "$env:APPDATA\@fire-app/desktop\fire-app\data\fire.db" "SELECT id, display_name, base_currency, is_china_market FROM users;"` | 输出一行：测试用户记录，display_name="测试用户"，base_currency="CNY"，is_china_market=1 | 查询返回 1 行，字段值正确 |
+| 4.3 验证种子分类数 | `sqlite3 "$env:APPDATA\@fire-app/desktop\fire-app\data\fire.db" "SELECT COUNT(*) FROM categories;"` | 输出 `18` | 计数 = 18 |
 
 > **注意：** 若系统未安装 sqlite3 命令行工具，可使用 [DB Browser for SQLite](https://sqlitebrowser.org/) 打开 DB 文件手动查看，或在 DevTools Console 中通过 `window.dataAccess` API 验证。
 
 **故障排查：**
-- 文件不存在 → 检查终端日志中的 DB 路径；`app.getPath('userData')` 在 Windows 上返回 `%APPDATA%\<app-name>`，确认 app name 为 `fire-app-desktop`（由 package.json `name` 字段决定）
+- 文件不存在 → 检查终端日志中的 DB 路径；`app.getPath('userData')` 在 Windows 上返回 `%APPDATA%\<app-name>`，确认 app name 为 `@fire-app/desktop`（由 package.json `name` 字段决定）
 - sqlite3 命令未找到 → 下载 sqlite-tools 或使用 DB Browser for SQLite
 
 ---
@@ -159,9 +172,9 @@
 如需重新测试首次启动场景（阶段 2），可删除 DB 文件重置状态：
 
 ```powershell
-Remove-Item -Path "$env:APPDATA\fire-app-desktop\fire-app\data\fire.db" -Force
-Remove-Item -Path "$env:APPDATA\fire-app-desktop\fire-app\data\fire.db-wal" -Force -ErrorAction SilentlyContinue
-Remove-Item -Path "$env:APPDATA\fire-app-desktop\fire-app\data\fire.db-shm" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "$env:APPDATA\@fire-app/desktop\fire-app\data\fire.db" -Force
+Remove-Item -Path "$env:APPDATA\@fire-app/desktop\fire-app\data\fire.db-wal" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "$env:APPDATA\@fire-app/desktop\fire-app\data\fire.db-shm" -Force -ErrorAction SilentlyContinue
 ```
 
 删除后重新运行 `pnpm dev`，页面应再次显示黄色"首次启动"提示。

@@ -17,6 +17,13 @@
 **Files:**
 - 无新文件，环境准备
 
+- [ ] **Step 0: 验证 pnpm 已安装**
+
+Run: `pnpm -v`
+Expected: 输出 pnpm 版本号（≥ 9）
+
+> 如果报 "无法将 pnpm 项识别为 cmdlet"，运行 `npm install -g pnpm` 安装。
+
 - [ ] **Step 1: 安装 workspace 依赖**
 
 Run: `cd "d:\Admin\OneDrive\Apps\FIRE APP" && pnpm install`
@@ -154,16 +161,16 @@ Expected: Electron 窗口打开
 
 - [ ] **Step 1: 确认 DB 文件存在**
 
-Run (PowerShell): `Get-ChildItem -Path "$env:APPDATA\fire-app-desktop\fire-app\data\fire.db"`
+Run (PowerShell): `Get-ChildItem -Path "$env:APPDATA\@fire-app/desktop\fire-app\data\fire.db"`
 Expected: 文件存在，大小 > 0（通常 > 12KB）
 
 通过标准：文件存在
 
-> 如果文件不存在，检查终端日志中的 DB 路径。`app.getPath('userData')` 在 Windows 上返回 `%APPDATA%\<app-name>`，确认 app name 为 `fire-app-desktop`（由 `apps/desktop/package.json` 的 `name` 字段决定）。
+> 如果文件不存在，检查终端日志中的 DB 路径。`app.getPath('userData')` 在 Windows 上返回 `%APPDATA%\<app-name>`，确认 app name 为 `@fire-app/desktop`（由 `apps/desktop/package.json` 的 `name` 字段决定）。
 
 - [ ] **Step 2: 验证 users 表数据**
 
-Run (PowerShell): `sqlite3 "$env:APPDATA\fire-app-desktop\fire-app\data\fire.db" "SELECT id, display_name, base_currency, is_china_market FROM users;"`
+Run (PowerShell): `sqlite3 "$env:APPDATA\@fire-app/desktop\fire-app\data\fire.db" "SELECT id, display_name, base_currency, is_china_market FROM users;"`
 Expected: 输出一行，display_name="测试用户"，base_currency="CNY"，is_china_market=1
 
 通过标准：查询返回 1 行，字段值正确
@@ -172,7 +179,7 @@ Expected: 输出一行，display_name="测试用户"，base_currency="CNY"，is_
 
 - [ ] **Step 3: 验证种子分类数量**
 
-Run (PowerShell): `sqlite3 "$env:APPDATA\fire-app-desktop\fire-app\data\fire.db" "SELECT COUNT(*) FROM categories;"`
+Run (PowerShell): `sqlite3 "$env:APPDATA\@fire-app/desktop\fire-app\data\fire.db" "SELECT COUNT(*) FROM categories;"`
 Expected: 输出 `18`
 
 通过标准：计数 = 18（11 个支出 + 7 个收入）
@@ -293,9 +300,22 @@ Expected: 提交成功，退出码 0
 如需重新测试首次启动场景（阶段 2），可删除 DB 文件重置状态：
 
 ```powershell
-Remove-Item -Path "$env:APPDATA\fire-app-desktop\fire-app\data\fire.db" -Force
-Remove-Item -Path "$env:APPDATA\fire-app-desktop\fire-app\data\fire.db-wal" -Force -ErrorAction SilentlyContinue
-Remove-Item -Path "$env:APPDATA\fire-app-desktop\fire-app\data\fire.db-shm" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "$env:APPDATA\@fire-app/desktop\fire-app\data\fire.db" -Force
+Remove-Item -Path "$env:APPDATA\@fire-app/desktop\fire-app\data\fire.db-wal" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "$env:APPDATA\@fire-app/desktop\fire-app\data\fire.db-shm" -Force -ErrorAction SilentlyContinue
 ```
 
 删除后重新运行 `pnpm dev`，页面应再次显示黄色"首次启动"提示。
+
+---
+
+## 附录：已知问题与解决方案
+
+| 编号 | 问题 | 症状 | 解决方案 |
+|------|------|------|----------|
+| 1 | pnpm 未安装 | `无法将"pnpm"项识别为 cmdlet` | `npm install -g pnpm` |
+| 2 | Electron 下载慢 | `pnpm install` 卡住 | .npmrc 已配置镜像；或 `$env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"` |
+| 3 | better-sqlite3 ABI 不匹配 | `NODE_MODULE_VERSION 137` vs `125` | `pnpm --filter @fire-app/desktop rebuild` |
+| 4 | preload 未加载 | `Cannot read properties of undefined (reading 'user')` | 确认 `sandbox: false` |
+| 5 | build scripts 被拦截 | `ERR_PNPM_IGNORED_BUILDS` | `pnpm-workspace.yaml` 已配置；或 `pnpm approve-builds` |
+| 6 | minimumReleaseAge 拦截 | `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` | `pnpm-workspace.yaml` 已配置 `minimumReleaseAge: 0` |
