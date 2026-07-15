@@ -1,0 +1,17 @@
+{
+  "name": "fire-app-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @fire-app/desktop dev",
+    "build": "pnpm --filter @fire-app/desktop build",
+    "test:shared": "pnpm --filter @fire-app/shared test"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3", "esbuild", "electron"]
+  }
+}

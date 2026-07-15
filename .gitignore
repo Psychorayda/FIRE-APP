@@ -1,0 +1,10 @@
+# pnpm content-addressable store (local sandbox only)
+.pnpm-store/
+
+# pnpm virtual store (per-package, but exclude at root too just in case)
+**/node_modules/.pnpm/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.log

@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+/* 设计系统主题色（对齐 UI/UX 设计：主色专业蓝、辅色翠绿）/ Design system theme */
+@theme {
+  --color-primary: #3B82F6;
+  --color-primary-dark: #2563EB;
+  --color-primary-darker: #1D4ED8;
+  --color-primary-sidebar: #1E3A8A;
+  --color-secondary: #10B981;
+  --color-secondary-dark: #059669;
+}
+
+body {
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Inter', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
