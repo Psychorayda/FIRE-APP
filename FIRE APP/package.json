@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "pnpm --filter @fire-app/desktop dev",
     "build": "pnpm --filter @fire-app/desktop build",
-    "test:shared": "pnpm --filter @fire-app/shared test"
+    "test:shared": "pnpm --filter @fire-app/shared test",
+    "postinstall": "pnpm --filter @fire-app/desktop rebuild"
   },
   "devDependencies": {
     "typescript": "^5.5.0"
