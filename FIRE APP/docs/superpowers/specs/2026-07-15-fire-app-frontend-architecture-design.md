@@ -21,7 +21,7 @@
 | **共享逻辑最大化** | 所有不依赖 Node.js / Electron 的纯 TypeScript 代码（types、utils、纯计算函数）抽取到 `packages/shared` |
 | **端口抽象** | 定义 `DataAccessPort` 接口，渲染进程面向接口编程；桌面走 IPC 实现，移动端走 react-native-quick-sqlite 实现 |
 | **最小改动迁移** | 现有 models/services 函数签名保持不变（仍是同步的 `fn(db, ...args)`），仅在主进程增加 IPC handler 包装层 |
-| **安全优先** | contextIsolation: true, nodeIntegration: false, sandbox: true，所有跨进程通信经 preload 白名单 |
+| **安全优先** | contextIsolation: true, nodeIntegration: false, sandbox: false，所有跨进程通信经 preload 白名单 |
 | **类型端到端** | IPC 通道的请求/响应均使用 TypeScript 泛型约束，编译期类型安全 |
 
 ### 1.3 架构总览
@@ -50,7 +50,7 @@
 │  │              │                  │ Bridge│              │               │ │
 │  │  ┌───────────┴──────────────┐  │       │  ┌───────────┴────────────┐  │ │
 │  │  │   Preload Script          │  │       │  │   contextBridge        │  │ │
-│  │  │   (contextBridge.expose)  │◄───────►  │   (window.api)          │  │ │
+│  │  │   (contextBridge.expose)  │◄───────►  │   (window.dataAccess)          │  │ │
 │  │  └──────────────────────────┘  │       │  └────────────────────────┘  │ │
 │  └──────────────────────────────┘       └──────────────────────────────┘ │
 │                                                                           │
@@ -69,7 +69,7 @@
 
 1. 用户在 React UI 中操作 → 触发 Zustand Store 的 action
 2. Store action 调用 `DataAccessPort` 接口方法
-3. `DataAccessPort` 的 IPC 实现通过 `window.api`（contextBridge 暴露）发送 IPC 请求
+3. `DataAccessPort` 的 IPC 实现通过 `window.dataAccess`（contextBridge 暴露）发送 IPC 请求
 4. 主进程的 IPC handler 接收请求 → 调用现有 models/services（传入 db 实例）→ 返回结果
 5. Store 更新状态 → React 组件自动重渲染
 
@@ -83,7 +83,7 @@
 |------|------|------------|
 | **主进程 (Main)** | 数据库连接管理、所有 CRUD 操作、FIRE 计算引擎、经常性交易处理、快照生成、IPC handler 注册 | Node.js 完整 API、better-sqlite3、文件系统 |
 | **Preload** | contextBridge 桥接，将 IPC 调用包装为类型安全的 API 暴露给渲染进程 | 受限的 Electron API（ipcRenderer.invoke） |
-| **渲染进程 (Renderer)** | React UI、Zustand 状态管理、路由、用户交互 | 仅 `window.api`（preload 暴露的白名单 API），无 Node.js |
+| **渲染进程 (Renderer)** | React UI、Zustand 状态管理、路由、用户交互 | 仅 `window.dataAccess`（preload 暴露的白名单 API），无 Node.js |
 
 **安全配置**：
 
@@ -91,10 +91,10 @@
 // 主窗口安全配置 / Main window security configuration
 const mainWindow = new BrowserWindow({
   webPreferences: {
-    preload: path.join(__dirname, '../preload/index.js'),
+    preload: path.join(__dirname, '../preload/index.mjs'),
     contextIsolation: true,      // 上下文隔离：渲染进程无法访问 preload 内部作用域
     nodeIntegration: false,       // 禁用 Node.js 集成：渲染进程无 require/import
-    sandbox: true,                // 沙箱模式：限制 preload 可用的 Node API
+    sandbox: false,               // 关闭沙箱：preload 使用 externalizeDepsPlugin 需访问 Node API
   },
 });
 ```
@@ -106,7 +106,7 @@ const mainWindow = new BrowserWindow({
 **理由**：
 
 1. **electron-vite** 是当前 Electron + Vite 集成的最佳方案。它深度整合了 Vite 的闪电构建速度与 Electron 的多进程能力，统一管理主进程、preload、渲染进程三套构建配置，开箱即用 HMR（热模块替换）。
-2. 相比手动配置 Vite + electron-forge，electron-vite 减少了约 60% 的配置代码，且内置了对 `contextIsolation`、`sandbox` 的正确处理。
+2. 相比手动配置 Vite + electron-forge，electron-vite 减少了约 60% 的配置代码，且内置了对 `contextIsolation`、preload 的正确处理。
 3. **React 19** 是当前稳定版本（2026年），支持 `use()` hook、改进的 Suspense、自动批处理优化，配合 Vite 的 React 插件可获得最佳开发体验。
 4. electron-vite 官方维护活跃，与 Electron 最新版本同步更新，社区生态成熟。
 
@@ -229,7 +229,7 @@ fire-app/                          # 仓库根目录
 │       │   │       └── fire-calc-service.ts  # runProjection (需要 DB)
 │       │   │
 │       │   ├── preload/           # Preload 脚本
-│       │   │   └── index.ts      # contextBridge 暴露 window.api
+│       │   │   └── index.ts      # contextBridge 暴露 window.dataAccess
 │       │   │
 │       │   └── renderer/         # 渲染进程
 │       │       ├── index.html
@@ -255,7 +255,7 @@ fire-app/                          # 仓库根目录
 │       │       │   └── scenario-store.ts
 │       │       ├── data/          # 数据访问层
 │       │       │   ├── data-access-port.ts    # DataAccessPort 接口定义
-│       │       │   ├── ipc-data-access.ts     # IPC 实现（调用 window.api）
+│       │       │   ├── ipc-data-access.ts     # IPC 实现（调用 window.dataAccess）
 │       │       │   └── data-access.ts         # 导出当前使用的实例
 │       │       ├── hooks/         # 自定义 React Hooks
 │       │       │   ├── useAccounts.ts
@@ -266,7 +266,7 @@ fire-app/                          # 仓库根目录
 │       │       ├── styles/       # 全局样式
 │       │       │   └── globals.css
 │       │       └── types/         # 渲染进程特有类型
-│       │           └── ipc-api.ts  # window.api 的 TypeScript 声明
+│       │           └── ipc-api.ts  # window.dataAccess 的 TypeScript 声明
 │       │
 │       └── tests/                # 测试（从现有 tests/ 迁移）
 │           ├── unit/
@@ -303,7 +303,7 @@ packages:
 桌面应用层分为三个进程目录，严格隔离：
 
 - **`src/main/`**：主进程，持有 DB 连接，包含所有 models/services（从现有代码零改动迁移），以及 IPC handler 包装层。
-- **`src/preload/`**：preload 脚本，使用 contextBridge 将 IPC 调用暴露为类型安全的 `window.api`。
+- **`src/preload/`**：preload 脚本，使用 contextBridge 将 IPC 调用暴露为类型安全的 `window.dataAccess`。
 - **`src/renderer/`**：渲染进程，React + Zustand + React Router，通过 DataAccessPort 接口访问数据。
 
 ### 3.4 现有代码迁移映射表
@@ -348,7 +348,7 @@ DataAccessPort (接口)
     ▼
 IpcDataAccess (实现)
     │
-    │  window.api.user.getUser(id)        contextBridge
+    │  window.dataAccess.user.getUser(id)        contextBridge
     │  ──────────────────────────►            │
     │                                          │  ipcRenderer.invoke('db:user:get', id)
     │                                          │  ──────────────────────────────────►
@@ -927,7 +927,7 @@ useTransactionStore
       │                          1. set({ isLoading: true })
       │──┐
       │  │  2. dataAccess.createTransaction(input)
-      │  └──────────────────────────────────────────►  window.api.transaction.create(input)
+      │  └──────────────────────────────────────────►  window.dataAccess.transaction.create(input)
       │                                                   │  ipcRenderer.invoke('db:tx:create')
       │                                                   │  ──────────────────────────────►
       │                                                   │                                 │
@@ -1196,8 +1196,8 @@ export default function App() {
 | Recurring IPC handlers | `apps/desktop/src/main/ipc/recurring-handlers.ts` | Recurring CRUD 的 IPC handler |
 | Scenario IPC handlers | `apps/desktop/src/main/ipc/scenario-handlers.ts` | Scenario CRUD 的 IPC handler |
 | Snapshot IPC handlers | `apps/desktop/src/main/ipc/snapshot-handlers.ts` | Snapshot 操作的 IPC handler |
-| Preload 脚本 | `apps/desktop/src/preload/index.ts` | contextBridge 暴露 window.api |
-| IpcApi 类型声明 | `apps/desktop/src/renderer/types/ipc-api.ts` | window.api 的 TypeScript 类型声明 |
+| Preload 脚本 | `apps/desktop/src/preload/index.ts` | contextBridge 暴露 window.dataAccess |
+| IpcApi 类型声明 | `apps/desktop/src/renderer/types/ipc-api.ts` | window.dataAccess 的 TypeScript 类型声明 |
 | DataAccessPort 接口 | `apps/desktop/src/renderer/data/data-access-port.ts` | 数据访问抽象接口定义 |
 | IpcDataAccess 实现 | `apps/desktop/src/renderer/data/ipc-data-access.ts` | DataAccessPort 的 IPC 实现 |
 | data-access 导出 | `apps/desktop/src/renderer/data/data-access.ts` | 导出当前使用的 DataAccessPort 实例 |
@@ -1304,7 +1304,7 @@ export class QuickSqliteDataAccess implements DataAccessPort {
 | ADR-006 | 路由方案 | React Router ^7.x | React 生态标准路由，v7 支持数据加载和嵌套路由 | 2026-07-15 |
 | ADR-007 | 包管理 | pnpm ^9.x | workspace 原生支持 monorepo，硬链接节省磁盘 | 2026-07-15 |
 | ADR-008 | Monorepo 结构 | packages/shared + apps/desktop | 纯逻辑抽取到 shared，Electron 专属代码在 apps/desktop | 2026-07-15 |
-| ADR-009 | 进程隔离策略 | contextIsolation + sandbox + preload contextBridge | Electron 安全最佳实践，渲染进程无法直接访问 Node API | 2026-07-15 |
+| ADR-009 | 进程隔离策略 | contextIsolation + sandbox: false + preload contextBridge | preload 使用 externalizeDepsPlugin 需关闭沙箱，contextIsolation 仍保证隔离 | 2026-07-15 |
 | ADR-010 | 数据访问抽象 | DataAccessPort 接口 | 渲染进程面向接口编程，桌面走 IPC，移动端走 quick-sqlite | 2026-07-15 |
 | ADR-011 | 现有代码迁移 | models/services 零改动迁移到主进程 | 保持函数签名 `fn(db, ...args)` 不变，仅加 IPC 包装层 | 2026-07-15 |
 | ADR-012 | fire-calc 拆分 | 纯函数→shared，runProjection→主进程 | 纯计算函数跨平台共享，DB 依赖函数留在主进程 | 2026-07-15 |

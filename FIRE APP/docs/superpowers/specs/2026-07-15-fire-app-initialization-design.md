@@ -582,10 +582,10 @@ app.whenReady().then(() => {
   // 4. 创建主窗口
   const mainWindow = new BrowserWindow({
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: path.join(__dirname, '../preload/index.mjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: false,  // preload 使用 externalizeDepsPlugin，需关闭沙箱
     },
   });
   mainWindow.loadURL('app://./index.html');
@@ -1142,10 +1142,10 @@ function createMainWindow(): BrowserWindow {
     x: savedBounds.x,
     y: savedBounds.y,
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: path.join(__dirname, '../preload/index.mjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: false,  // preload 使用 externalizeDepsPlugin，需关闭沙箱
     },
   });
 
