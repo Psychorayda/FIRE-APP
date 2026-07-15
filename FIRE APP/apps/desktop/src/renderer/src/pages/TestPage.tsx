@@ -1,21 +1,27 @@
 // 架构验证页面 / Architecture validation page
 // 验证 IPC 桥 + 数据层 + React 渲染的完整数据通路
+// 注：Task 2 删除了临时 user-store，此页改用 useAppStore（Task 5 将删除本页）
 
 import { useEffect } from 'react';
-import { useUserStore } from '../stores/user-store';
+import { useAppStore } from '../stores';
+import { dataAccess } from '../data/data-access';
+import type { User } from '@shared/types/index.js';
 
 export function TestPage() {
-  const { user, loading, error, fetchUser, createUser } = useUserStore();
+  const { currentUser, loading, error, initialize, completeOnboarding } = useAppStore();
 
   useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
+    initialize();
+  }, [initialize]);
 
-  const handleCreateUser = () => {
-    createUser({
+  const handleCreateUser = async () => {
+    const user: User = await dataAccess.createUser({
       display_name: '测试用户',
       is_china_market: 1,
     });
+    // 创建用户后立即创建种子分类
+    await dataAccess.seedCategories(user.id);
+    completeOnboarding(user);
   };
 
   return (
@@ -39,17 +45,17 @@ export function TestPage() {
             </div>
           )}
 
-          {!loading && !error && user && (
+          {!loading && !error && currentUser && (
             <div className="bg-green-50 border border-green-200 rounded p-4">
               <p className="text-green-700 font-medium">✓ IPC 桥验证通过</p>
-              <p className="text-gray-600 mt-2">用户名: {user.display_name}</p>
-              <p className="text-gray-600">货币: {user.base_currency}</p>
-              <p className="text-gray-600">中国市场: {user.is_china_market ? '是' : '否'}</p>
-              <p className="text-gray-600">用户 ID: {user.id}</p>
+              <p className="text-gray-600 mt-2">用户名: {currentUser.display_name}</p>
+              <p className="text-gray-600">货币: {currentUser.base_currency}</p>
+              <p className="text-gray-600">中国市场: {currentUser.is_china_market ? '是' : '否'}</p>
+              <p className="text-gray-600">用户 ID: {currentUser.id}</p>
             </div>
           )}
 
-          {!loading && !error && !user && (
+          {!loading && !error && !currentUser && (
             <div className="bg-amber-50 border border-amber-200 rounded p-4">
               <p className="text-amber-700 font-medium">无用户记录（首次启动）</p>
               <button
@@ -72,7 +78,7 @@ export function TestPage() {
             <li>✓ React 19 渲染进程</li>
             <li>✓ Zustand 状态管理</li>
             <li>✓ Tailwind CSS 样式</li>
-            {user && <li>✓ 数据层 CRUD（用户创建 + 种子分类）</li>}
+            {currentUser && <li>✓ 数据层 CRUD（用户创建 + 种子分类）</li>}
           </ul>
         </div>
       </div>
