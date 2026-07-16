@@ -12,6 +12,7 @@ import {
   softDeleteAccount,
   hasTransactions,
   updateAccountBalance,
+  updateAccount,
 } from '../../src/models/account.js';
 import type { Database as DatabaseType } from 'better-sqlite3';
 
@@ -145,5 +146,41 @@ describe('account model', () => {
     softDeleteAccount(db, acc.id);
     const deleted = getAccount(db, acc.id);
     expect(deleted).toBeNull(); // 软删除后查询返回null
+  });
+
+  it('updateAccount: 更新名称 → 返回更新后的 Account', () => {
+    const acc = createAccount(db, {
+      user_id: userId, name: '测试', asset_class: 'liquid', account_type: 'checking',
+    });
+    const updated = updateAccount(db, acc.id, { name: '新名称' });
+    expect(updated.name).toBe('新名称');
+    expect(updated.id).toBe(acc.id);
+  });
+
+  it('updateAccount: 更新多个字段 → 所有字段更新 + sync_version 递增', () => {
+    const acc = createAccount(db, {
+      user_id: userId, name: '测试', asset_class: 'liquid', account_type: 'checking',
+    });
+    const updated = updateAccount(db, acc.id, {
+      name: '基金账户', asset_class: 'invested', account_type: 'fund', note: '长期持有',
+    });
+    expect(updated.name).toBe('基金账户');
+    expect(updated.asset_class).toBe('invested');
+    expect(updated.account_type).toBe('fund');
+    expect(updated.note).toBe('长期持有');
+    expect(updated.sync_version).toBe(acc.sync_version + 1);
+  });
+
+  it('updateAccount: 空输入 → 返回原 Account 不变', () => {
+    const acc = createAccount(db, {
+      user_id: userId, name: '测试', asset_class: 'liquid', account_type: 'checking',
+    });
+    const updated = updateAccount(db, acc.id, {});
+    expect(updated.name).toBe('测试');
+    expect(updated.sync_version).toBe(acc.sync_version);
+  });
+
+  it('updateAccount: 不存在的 ID → 抛出错误', () => {
+    expect(() => updateAccount(db, 'nonexistent-id', { name: 'x' })).toThrow(/Account not found/);
   });
 });

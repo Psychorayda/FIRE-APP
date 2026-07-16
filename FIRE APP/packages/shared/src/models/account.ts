@@ -14,6 +14,14 @@ export interface CreateAccountInput {
   note?: string | null;
 }
 
+export interface EditAccountInput {
+  name?: string;
+  asset_class?: AssetClass;
+  account_type?: AccountType;
+  note?: string | null;
+  display_order?: number;
+}
+
 export function createAccount(db: DatabaseType, input: CreateAccountInput): Account {
   const id = uuidv4();
   const now = nowMs();
@@ -60,6 +68,34 @@ export function updateAccountBalance(db: DatabaseType, id: string, newBalance: n
   db.prepare(`
     UPDATE accounts SET current_balance = ?, last_updated = ? WHERE id = ?
   `).run(newBalance, nowMs(), id);
+}
+
+/**
+ * 更新账户字段（partial update，余额不可直接编辑）
+ * 每次更新递增 sync_version，为后续同步层预留
+ */
+export function updateAccount(db: DatabaseType, id: string, input: EditAccountInput): Account {
+  const current = getAccount(db, id);
+  if (!current) { throw new Error(`Account not found: ${id}`); }
+
+  const fields: string[] = [];
+  const values: (string | number | null)[] = [];
+
+  if (input.name !== undefined) { fields.push('name = ?'); values.push(input.name); }
+  if (input.asset_class !== undefined) { fields.push('asset_class = ?'); values.push(input.asset_class); }
+  if (input.account_type !== undefined) { fields.push('account_type = ?'); values.push(input.account_type); }
+  if (input.note !== undefined) { fields.push('note = ?'); values.push(input.note); }
+  if (input.display_order !== undefined) { fields.push('display_order = ?'); values.push(input.display_order); }
+
+  if (fields.length === 0) { return current; }
+
+  fields.push('sync_version = ?'); values.push(current.sync_version + 1);
+  fields.push('updated_at = ?'); values.push(nowMs());
+  values.push(id);
+
+  db.prepare(`UPDATE accounts SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+
+  return getAccount(db, id)!;
 }
 
 /**
