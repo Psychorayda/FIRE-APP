@@ -6,3 +6,4 @@ export { useTransactionStore } from './transaction-store.js';
 export { useSnapshotStore } from './snapshot-store.js';
 export { useScenarioStore } from './scenario-store.js';
 export { useToastStore } from './toast-store.js';
+export { useCategoryStore } from './category-store.js';
