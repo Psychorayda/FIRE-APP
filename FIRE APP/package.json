@@ -3,10 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0 <22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
     "dev": "pnpm --filter @fire-app/desktop dev",
     "build": "pnpm --filter @fire-app/desktop build",
     "test:shared": "pnpm --filter @fire-app/shared test",
+    "check-env": "node scripts/check-env.mjs",
+    "setup": "node scripts/setup.mjs",
+    "preinstall": "node scripts/check-env.mjs --quiet || true",
     "postinstall": "pnpm --filter @fire-app/desktop rebuild"
   },
   "devDependencies": {
