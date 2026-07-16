@@ -16,18 +16,30 @@
 
 ## 环境要求
 
-- **Node.js** ≥ 20
+- **Node.js 20.x LTS**（Electron 31 内置版本，避免 ABI 不匹配；**不要用 Node 22/24**）
 - **pnpm** ≥ 9（安装：`npm install -g pnpm`）
-- **Windows**: Visual Studio Build Tools（C++ 原生模块编译）
+- ⚠️ **不要放在 OneDrive 目录**（文件同步会导致原生模块编译失败，详见 [手动安装](docs/env-setup.md#onedrive-问题)）
+- **Windows**: Visual Studio Build Tools（C++ 原生模块编译，仅 Node 22+ 需要；Node 20 有预编译包可跳过）
 - **macOS**: Xcode Command Line Tools
 - **Linux**: build-essential
+
+### Node 版本管理（推荐 nvm）
+
+```bash
+nvm install 20.18.0    # 安装 Node 20 LTS（项目 .nvmrc 已指定）
+nvm use 20.18.0        # 切换到 Node 20
+```
 
 ## 快速开始
 
 ```bash
-pnpm install    # 安装依赖（含自动 rebuild 原生模块）
+pnpm setup      # 一键安装（自动检测环境 + 镜像 + 原生模块编译）
 pnpm dev        # 启动开发模式
 ```
+
+> 首次 clone 后推荐用 `pnpm setup`，它会自动检测环境问题并给出修复命令。
+> 若已安装过依赖，直接 `pnpm dev` 即可。
+> 遇到环境问题可随时跑 `pnpm check-env` 诊断。
 
 ## 常用命令
 
@@ -53,6 +65,10 @@ FIRE APP/
 ├── pnpm-workspace.yaml    # Workspace 配置
 └── package.json           # Monorepo 根配置
 ```
+
+## 手动安装 / 故障排查
+
+如果 `pnpm setup` 失败，或遇到环境问题，详见 [手动安装文档](docs/env-setup.md)（含 OneDrive、Node 版本、SSL、ABI、文件锁定等 9 类问题的完整解决方案）。
 
 ## 故障排查
 
@@ -120,6 +136,10 @@ pnpm --filter @fire-app/desktop rebuild
 - `electron_builder_binaries_mirror` — electron-builder 打包工具下载地址
 
 海外开发者如需使用官方源，删除 `.npmrc` 中对应行即可，不影响 npm registry。
+
+> `.npmrc` 中的 `strict-ssl=false` 是为绕过 npmmirror 证书链问题，对官方源无影响。
+> `better_sqlite3_binary_host_mirror` 用于加速 better-sqlite3 预编译二进制下载。
+> 详细的镜像配置与故障排查见 [手动安装文档](docs/env-setup.md)。
 
 ## 开发文档
 
