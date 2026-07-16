@@ -15,6 +15,11 @@ describe('money utils', () => {
     expect(yuanToCents(1.005)).toBe(101);
   });
 
+  it('yuanToCents: 负数金额（负债场景）', () => {
+    expect(yuanToCents(-100)).toBe(-10000);
+    expect(yuanToCents(-1.005)).toBe(-101);
+  });
+
   it('centsToYuan: 123456分 → 1234.56元', () => {
     expect(centsToYuan(123456)).toBe(1234.56);
   });
