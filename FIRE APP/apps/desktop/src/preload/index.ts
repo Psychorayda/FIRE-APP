@@ -22,6 +22,7 @@ const dataAccess = {
     create: (input: unknown) => ipcRenderer.invoke('db:account:create', input),
     get: (id: string) => ipcRenderer.invoke('db:account:get', id),
     list: (userId: string) => ipcRenderer.invoke('db:account:list', userId),
+    update: (id: string, input: unknown) => ipcRenderer.invoke('db:account:update', id, input),
     updateBalance: (id: string, newBalance: number) => ipcRenderer.invoke('db:account:updateBalance', id, newBalance),
     investableBalance: (userId: string) => ipcRenderer.invoke('db:account:investableBalance', userId),
     netWorth: (userId: string) => ipcRenderer.invoke('db:account:netWorth', userId),

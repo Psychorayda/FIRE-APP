@@ -3,7 +3,7 @@
 
 import type { DataAccessPort } from './data-access-port.js';
 import type { CreateUserInput, UpdateUserInput } from '@shared/models/user.js';
-import type { CreateAccountInput } from '@shared/models/account.js';
+import type { CreateAccountInput, EditAccountInput } from '@shared/models/account.js';
 import type { CreateCategoryInput } from '@shared/models/category.js';
 import type { CreateRecurringInput } from '@shared/models/recurring.js';
 import type { CreateScenarioInput } from '@shared/models/scenario.js';
@@ -34,6 +34,7 @@ export class IpcDataAccess implements DataAccessPort {
   createAccount(input: CreateAccountInput) { return window.dataAccess.account.create(input); }
   getAccount(id: string) { return window.dataAccess.account.get(id); }
   getAccounts(userId: string) { return window.dataAccess.account.list(userId); }
+  updateAccount(id: string, input: EditAccountInput) { return window.dataAccess.account.update(id, input); }
   updateAccountBalance(id: string, newBalance: number) { return window.dataAccess.account.updateBalance(id, newBalance); }
   getInvestableBalance(userId: string) { return window.dataAccess.account.investableBalance(userId); }
   getNetWorth(userId: string) { return window.dataAccess.account.netWorth(userId); }

@@ -7,7 +7,7 @@ import type {
   NetWorthSnapshot, FireScenario, CategoryType,
 } from '@shared/types/index.js';
 import type { CreateUserInput, UpdateUserInput } from '@shared/models/user.js';
-import type { CreateAccountInput } from '@shared/models/account.js';
+import type { CreateAccountInput, EditAccountInput } from '@shared/models/account.js';
 import type { CreateCategoryInput } from '@shared/models/category.js';
 import type { CreateRecurringInput } from '@shared/models/recurring.js';
 import type { CreateScenarioInput } from '@shared/models/scenario.js';
@@ -37,6 +37,7 @@ export interface DataAccessPort {
   createAccount(input: CreateAccountInput): Promise<Account>;
   getAccount(id: string): Promise<Account | null>;
   getAccounts(userId: string): Promise<Account[]>;
+  updateAccount(id: string, input: EditAccountInput): Promise<Account>;
   updateAccountBalance(id: string, newBalance: number): Promise<void>;
   getInvestableBalance(userId: string): Promise<number>;
   getNetWorth(userId: string): Promise<number>;

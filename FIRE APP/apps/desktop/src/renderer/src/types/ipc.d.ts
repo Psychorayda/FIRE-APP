@@ -6,7 +6,7 @@ import type {
   NetWorthSnapshot, FireScenario, CategoryType,
 } from '@shared/types/index.js';
 import type { CreateUserInput, UpdateUserInput } from '@shared/models/user.js';
-import type { CreateAccountInput } from '@shared/models/account.js';
+import type { CreateAccountInput, EditAccountInput } from '@shared/models/account.js';
 import type { CreateCategoryInput } from '@shared/models/category.js';
 import type { CreateRecurringInput } from '@shared/models/recurring.js';
 import type { CreateScenarioInput } from '@shared/models/scenario.js';
@@ -31,6 +31,7 @@ export interface DataAccessAPI {
     create(input: CreateAccountInput): Promise<Account>;
     get(id: string): Promise<Account | null>;
     list(userId: string): Promise<Account[]>;
+    update(id: string, input: EditAccountInput): Promise<Account>;
     updateBalance(id: string, newBalance: number): Promise<void>;
     investableBalance(userId: string): Promise<number>;
     netWorth(userId: string): Promise<number>;

@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import type { Account } from '@shared/types/index.js';
-import type { CreateAccountInput } from '@shared/models/account.js';
+import type { CreateAccountInput, EditAccountInput } from '@shared/models/account.js';
 import { dataAccess } from '../data/data-access.js';
 
 interface AccountStore {
@@ -12,6 +12,7 @@ interface AccountStore {
 
   fetchAccounts: (userId: string) => Promise<void>;
   createAccount: (input: CreateAccountInput, userId: string) => Promise<void>;
+  updateAccount: (id: string, input: EditAccountInput, userId: string) => Promise<void>;
   softDeleteAccount: (id: string, userId: string) => Promise<void>;
   clear: () => void;
 }
@@ -35,6 +36,17 @@ export const useAccountStore = create<AccountStore>((set) => ({
     set({ loading: true, error: null });
     try {
       await dataAccess.createAccount(input);
+      const accounts = await dataAccess.getAccounts(userId);
+      set({ accounts, loading: false });
+    } catch (err) {
+      set({ error: (err as Error).message, loading: false });
+    }
+  },
+
+  updateAccount: async (id, input, userId) => {
+    set({ loading: true, error: null });
+    try {
+      await dataAccess.updateAccount(id, input);
       const accounts = await dataAccess.getAccounts(userId);
       set({ accounts, loading: false });
     } catch (err) {
