@@ -12,6 +12,8 @@
     "dev": "pnpm --filter @fire-app/desktop dev",
     "build": "pnpm --filter @fire-app/desktop build",
     "test:shared": "pnpm --filter @fire-app/shared test",
+    "test:desktop": "pnpm --filter @fire-app/desktop test",
+    "test:all": "pnpm test:shared && pnpm test:desktop",
     "check-env": "node scripts/check-env.mjs",
     "bootstrap": "node scripts/setup.mjs",
     "preinstall": "node scripts/check-env.mjs --quiet || true",
