@@ -96,7 +96,7 @@ function step4Verify() {
     console.log(`${bold}启动开发模式：${reset}`);
     console.log(`  ${cyan}pnpm --filter @fire-app/desktop dev${reset}\n`);
   } else {
-    console.log(`\n${yellow}[警告]${reset} 环境仍有问题，请按上方提示修复后重跑 ${cyan}pnpm setup${reset}\n`);
+    console.log(`\n${yellow}[警告]${reset} 环境仍有问题，请按上方提示修复后重跑 ${cyan}pnpm bootstrap${reset}\n`);
   }
 
   return passed;

@@ -13,7 +13,7 @@
     "build": "pnpm --filter @fire-app/desktop build",
     "test:shared": "pnpm --filter @fire-app/shared test",
     "check-env": "node scripts/check-env.mjs",
-    "setup": "node scripts/setup.mjs",
+    "bootstrap": "node scripts/setup.mjs",
     "preinstall": "node scripts/check-env.mjs --quiet || true",
     "postinstall": "pnpm --filter @fire-app/desktop rebuild"
   },

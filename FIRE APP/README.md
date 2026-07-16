@@ -33,11 +33,11 @@ nvm use 20.18.0        # 切换到 Node 20
 ## 快速开始
 
 ```bash
-pnpm setup      # 一键安装（自动检测环境 + 镜像 + 原生模块编译）
+pnpm bootstrap  # 一键安装（自动检测环境 + 镜像 + 原生模块编译）
 pnpm dev        # 启动开发模式
 ```
 
-> 首次 clone 后推荐用 `pnpm setup`，它会自动检测环境问题并给出修复命令。
+> 首次 clone 后推荐用 `pnpm bootstrap`，它会自动检测环境问题并给出修复命令。
 > 若已安装过依赖，直接 `pnpm dev` 即可。
 > 遇到环境问题可随时跑 `pnpm check-env` 诊断。
 
@@ -68,7 +68,7 @@ FIRE APP/
 
 ## 手动安装 / 故障排查
 
-如果 `pnpm setup` 失败，或遇到环境问题，详见 [手动安装文档](docs/env-setup.md)（含 OneDrive、Node 版本、SSL、ABI、文件锁定等 9 类问题的完整解决方案）。
+如果 `pnpm bootstrap` 失败，或遇到环境问题，详见 [手动安装文档](docs/env-setup.md)（含 OneDrive、Node 版本、SSL、ABI、文件锁定等 9 类问题的完整解决方案）。
 
 ## 故障排查
 
