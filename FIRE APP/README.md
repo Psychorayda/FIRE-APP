@@ -32,6 +32,20 @@ nvm use 20.18.0        # 切换到 Node 20
 
 ## 快速开始
 
+### 方式一：Docker 开发环境（推荐，零本地配置）
+
+```bash
+docker compose up dev    # 构建并启动开发容器
+```
+
+浏览器访问 `http://localhost:6080` 即可看到应用 GUI（noVNC web 访问）。
+
+> 首次构建需 5-10 分钟（下载基础镜像 + 安装依赖 + 编译原生模块）。
+> 后续启动秒级（镜像已缓存）。
+> 详见 [Docker 开发环境文档](docs/docker-dev.md)。
+
+### 方式二：本地开发环境
+
 ```bash
 pnpm bootstrap  # 一键安装（自动检测环境 + 镜像 + 原生模块编译）
 pnpm dev        # 启动开发模式

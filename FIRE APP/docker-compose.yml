@@ -1,0 +1,21 @@
+# FIRE App 开发环境 Docker Compose / Dev environment Docker Compose
+# 使用：docker compose up dev / Usage: docker compose up dev
+
+services:
+  dev:
+    build: .
+    ports:
+      - "6080:6080"  # noVNC web client（浏览器访问 GUI）
+      - "5173:5173"  # Vite dev server（可选直连）
+    volumes:
+      - .:/app                              # 源码挂载（热重载）
+      - fire-app-data:/home/node/.config    # 数据持久化（sqlite）
+      - fire-app-node-modules:/app/node_modules  # 隔离 node_modules（保护容器内编译的 .node）
+    environment:
+      - DISPLAY=:99
+      - NODE_ENV=development
+    shm_size: '2g'  # Electron 需要较大共享内存，默认 64m 会崩溃
+
+volumes:
+  fire-app-data:
+  fire-app-node-modules:
