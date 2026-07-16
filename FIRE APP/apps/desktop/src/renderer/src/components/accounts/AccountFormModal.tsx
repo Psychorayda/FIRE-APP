@@ -36,7 +36,7 @@ export function AccountFormModal({ open, mode, account, userId, loading, onSubmi
       setName(account.name);
       setAssetClass(account.asset_class);
       setAccountType(account.account_type);
-      setInitialBalance(String(centsToYuan(account.current_balance)));
+      setInitialBalance(centsToYuan(account.current_balance).toFixed(2));
       setNote(account.note ?? '');
     } else {
       setName('');
