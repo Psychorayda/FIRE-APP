@@ -34,7 +34,3 @@ export function generateMonthlySnapshot(db: DatabaseType, userId: string): NetWo
   insertSnapshot(db, snapshot);
   return snapshot;
 }
-
-export function getSnapshots(db: DatabaseType, userId: string): NetWorthSnapshot[] {
-  return db.prepare('SELECT * FROM net_worth_snapshots WHERE user_id = ? AND deleted_flag = 0 ORDER BY snapshot_date DESC').all(userId) as NetWorthSnapshot[];
-}

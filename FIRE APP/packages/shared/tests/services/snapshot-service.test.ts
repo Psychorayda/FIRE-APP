@@ -3,7 +3,8 @@ import { createDatabase, closeDatabase } from '../../src/db/connection.js';
 import { initSchema } from '../../src/db/schema.js';
 import { createUser } from '../../src/models/user.js';
 import { createAccount } from '../../src/models/account.js';
-import { generateMonthlySnapshot, getSnapshots } from '../../src/services/snapshot-service.js';
+import { generateMonthlySnapshot } from '../../src/services/snapshot-service.js';
+import { getSnapshots } from '../../src/models/snapshot.js';
 import type { Database as DatabaseType } from 'better-sqlite3';
 
 describe('snapshot service', () => {

@@ -1,6 +1,6 @@
 import { registerHandler } from './register-handlers.js';
-import { getSnapshotByMonth } from '@shared/models/snapshot.js';
-import { getSnapshots, generateMonthlySnapshot } from '@shared/services/snapshot-service.js';
+import { getSnapshots, getSnapshotByMonth } from '@shared/models/snapshot.js';
+import { generateMonthlySnapshot } from '@shared/services/snapshot-service.js';
 import type { Database as DatabaseType } from 'better-sqlite3';
 
 export function registerSnapshotHandlers(db: DatabaseType): void {
