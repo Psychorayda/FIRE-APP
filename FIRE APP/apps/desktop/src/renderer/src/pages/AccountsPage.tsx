@@ -92,7 +92,9 @@ export function AccountsPage() {
         extra={<Button variant="primary" size="md" onClick={openCreateModal}>+ 新增账户</Button>}
       />
       <div className="p-8 space-y-6">
-        <AccountOverviewCards accounts={accounts} />
+        {accounts.length > 0 && (
+          <AccountOverviewCards accounts={accounts} />
+        )}
         <AccountListTable
           accounts={accounts}
           loading={loading}
