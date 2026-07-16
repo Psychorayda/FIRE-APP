@@ -20,9 +20,13 @@ const quiet = process.argv.includes('--quiet');
 const results = [];
 let hasFatal = false;
 
+// 致命错误名单：这些检查失败会阻断流程（退出码 1）
+// Fatal checks: failures here block the flow (exit code 1)
+const FATAL_CHECKS = ['Node 版本', '原生模块', 'Electron 二进制'];
+
 function addResult(name, passed, detail, fix) {
   results.push({ name, passed, detail, fix });
-  if (!passed && name === 'Node 版本') hasFatal = true;
+  if (!passed && FATAL_CHECKS.includes(name)) hasFatal = true;
 }
 
 // 颜色 / Colors（Windows cmd 也支持 ANSI）
