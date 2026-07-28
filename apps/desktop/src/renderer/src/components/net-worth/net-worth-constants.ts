@@ -53,6 +53,16 @@ export interface AllocationData {
   hasData: boolean;
 }
 
+/** 格式化元金额为人民币货币字符串（不再除以 100，区别于 formatAmount 处理分） */
+// Format yuan amount as CNY currency string (no /100, unlike formatAmount which handles cents)
+export function formatYuan(yuan: number): string {
+  return new Intl.NumberFormat('zh-CN', {
+    style: 'currency',
+    currency: 'CNY',
+    minimumFractionDigits: 2,
+  }).format(yuan);
+}
+
 /** 按时间范围筛选 snapshots（返回升序） */
 // Filter snapshots by time range (returns ascending)
 export function filterByTimeRange(
