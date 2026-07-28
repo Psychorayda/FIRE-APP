@@ -21,6 +21,8 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TrendChart } from '@renderer/components/net-worth/TrendChart.js';
 import type { TrendPoint, TimeRangeKey, MetricKey } from '@renderer/components/net-worth/net-worth-constants.js';
+import { AllocationDonut } from '@renderer/components/net-worth/AllocationDonut.js';
+import type { AllocationData } from '@renderer/components/net-worth/net-worth-constants.js';
 
 describe('TrendChart', () => {
   const defaultProps = {
@@ -87,5 +89,46 @@ describe('TrendChart', () => {
     render(<TrendChart {...defaultProps} />);
     fireEvent.click(screen.getByText('流动'));
     expect(defaultProps.onMetricChange).toHaveBeenCalledWith('liquid');
+  });
+});
+
+describe('AllocationDonut', () => {
+  const emptyData: AllocationData = { items: [], netWorth: 0, totalAssets: 0, hasData: false };
+
+  const validData: AllocationData = {
+    items: [
+      { name: '流动资产', value: 1000, color: '#3B82F6', percent: 25 },
+      { name: '投资资产', value: 2000, color: '#8B5CF6', percent: 50 },
+      { name: '使用资产', value: 1000, color: '#F59E0B', percent: 25 },
+      { name: '负债', value: -500, color: '#EF4444', percent: -12.5 },
+    ],
+    netWorth: 3500,
+    totalAssets: 4000,
+    hasData: true,
+  };
+
+  it('空数据显示空状态提示', () => {
+    render(<AllocationDonut data={emptyData} loading={false} />);
+    expect(screen.getByText('暂无配比数据')).toBeInTheDocument();
+  });
+
+  it('loading 显示加载中', () => {
+    render(<AllocationDonut data={emptyData} loading={true} />);
+    expect(screen.getByText('加载中...')).toBeInTheDocument();
+  });
+
+  it('有数据时渲染饼图', () => {
+    render(<AllocationDonut data={validData} loading={false} />);
+    expect(screen.getByTestId('pie-chart')).toBeInTheDocument();
+  });
+
+  it('有数据时显示净资产中心值', () => {
+    render(<AllocationDonut data={validData} loading={false} />);
+    expect(screen.getByText('¥3,500.00')).toBeInTheDocument();
+  });
+
+  it('渲染标题"资产配比（最新月份）"', () => {
+    render(<AllocationDonut data={validData} loading={false} />);
+    expect(screen.getByText('资产配比（最新月份）')).toBeInTheDocument();
   });
 });
