@@ -23,6 +23,7 @@ import { TrendChart } from '@renderer/components/net-worth/TrendChart.js';
 import type { TrendPoint, TimeRangeKey, MetricKey } from '@renderer/components/net-worth/net-worth-constants.js';
 import { AllocationDonut } from '@renderer/components/net-worth/AllocationDonut.js';
 import type { AllocationData } from '@renderer/components/net-worth/net-worth-constants.js';
+import { AllocationDetail } from '@renderer/components/net-worth/AllocationDetail.js';
 
 describe('TrendChart', () => {
   const defaultProps = {
@@ -130,5 +131,62 @@ describe('AllocationDonut', () => {
   it('渲染标题"资产配比（最新月份）"', () => {
     render(<AllocationDonut data={validData} loading={false} />);
     expect(screen.getByText('资产配比（最新月份）')).toBeInTheDocument();
+  });
+});
+
+describe('AllocationDetail', () => {
+  const emptyData: AllocationData = { items: [], netWorth: 0, totalAssets: 0, hasData: false };
+
+  const validData: AllocationData = {
+    items: [
+      { name: '流动资产', value: 1000, color: '#3B82F6', percent: 25 },
+      { name: '投资资产', value: 2000, color: '#8B5CF6', percent: 50 },
+      { name: '使用资产', value: 1000, color: '#F59E0B', percent: 25 },
+      { name: '负债', value: -500, color: '#EF4444', percent: -12.5 },
+    ],
+    netWorth: 3500,
+    totalAssets: 4000,
+    hasData: true,
+  };
+
+  it('空数据显示空状态提示', () => {
+    render(<AllocationDetail data={emptyData} />);
+    expect(screen.getByText('暂无明细数据')).toBeInTheDocument();
+  });
+
+  it('有数据时显示 4 类资产', () => {
+    render(<AllocationDetail data={validData} />);
+    expect(screen.getByText('流动资产')).toBeInTheDocument();
+    expect(screen.getByText('投资资产')).toBeInTheDocument();
+    expect(screen.getByText('使用资产')).toBeInTheDocument();
+    expect(screen.getByText('负债')).toBeInTheDocument();
+  });
+
+  it('显示金额', () => {
+    render(<AllocationDetail data={validData} />);
+    // 流动资产与使用资产均为 1000 元，命中 2 处
+    expect(screen.getAllByText('¥1,000.00')).toHaveLength(2);
+    expect(screen.getByText('¥2,000.00')).toBeInTheDocument();
+    // Intl zh-CN CNY 负数格式为 -¥500.00（负号在 ¥ 前）
+    expect(screen.getByText('-¥500.00')).toBeInTheDocument();
+  });
+
+  it('显示百分比', () => {
+    render(<AllocationDetail data={validData} />);
+    // 流动资产与使用资产均为 25%，命中 2 处
+    expect(screen.getAllByText('25.0%')).toHaveLength(2);
+    expect(screen.getByText('50.0%')).toBeInTheDocument();
+    expect(screen.getByText('-12.5%')).toBeInTheDocument();
+  });
+
+  it('显示净资产合计', () => {
+    render(<AllocationDetail data={validData} />);
+    expect(screen.getByText('净资产')).toBeInTheDocument();
+    expect(screen.getByText('¥3,500.00')).toBeInTheDocument();
+  });
+
+  it('渲染标题"明细"', () => {
+    render(<AllocationDetail data={validData} />);
+    expect(screen.getByText('明细')).toBeInTheDocument();
   });
 });
