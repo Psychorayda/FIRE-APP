@@ -9,20 +9,12 @@ directories:
   output: ../../release    # 产物输出到项目根 release/
   buildResources: build     # 图标等资源目录（apps/desktop/build/）
 
-# 打包文件：electron-vite build 产物 + package.json + node_modules（自动处理依赖）
-# @fire-app/shared 已被 inline 打包进 out/，从 node_modules 排除避免 workspace 符号链接路径检查失败
+# 打包文件：electron-vite build 产物 + package.json
+# node_modules 依赖由 electron-builder 根据 package.json dependencies 自动处理
+# @fire-app/shared 已 inline 打包进 out/，CI 打包前会从 dependencies 移除
 files:
   - out/**/*
   - package.json
-  - "!.github/**"
-  - "!docs/**"
-  - "!tests/**"
-  - "!src/**"
-  - "!*.ts"
-  - "!*.config.*"
-  - "!electron-builder.yml"
-  # 关键：排除 workspace 依赖的符号链接目录
-  - "!node_modules/@fire-app/**"
 
 # asar 打包，但原生模块解包（better-sqlite3 的 .node 必须能被 require）
 asar: true
