@@ -8,6 +8,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
+    "dist": "electron-vite build && electron-builder --config electron-builder.yml",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "test": "vitest run",
     "test:watch": "vitest"

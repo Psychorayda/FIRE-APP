@@ -5,6 +5,7 @@ node_modules/
 dist/
 out/
 build/
+!apps/desktop/build/
 
 # Electron 打包 / Electron packaging
 release/

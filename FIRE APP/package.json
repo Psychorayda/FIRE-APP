@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "pnpm --filter @fire-app/desktop dev",
     "build": "pnpm --filter @fire-app/desktop build",
+    "dist": "pnpm --filter @fire-app/desktop dist",
     "test:shared": "pnpm --filter @fire-app/shared test",
     "test:desktop": "pnpm --filter @fire-app/desktop test",
     "test:all": "pnpm test:shared && pnpm test:desktop",
