@@ -24,6 +24,9 @@ import type { TrendPoint, TimeRangeKey, MetricKey } from '@renderer/components/n
 import { AllocationDonut } from '@renderer/components/net-worth/AllocationDonut.js';
 import type { AllocationData } from '@renderer/components/net-worth/net-worth-constants.js';
 import { AllocationDetail } from '@renderer/components/net-worth/AllocationDetail.js';
+import { NetWorthPage } from '@renderer/pages/NetWorthPage.js';
+import { useAppStore } from '@renderer/stores/app-store.js';
+import type { NetWorthSnapshot } from '@shared/types/index.js';
 
 describe('TrendChart', () => {
   const defaultProps = {
@@ -188,5 +191,75 @@ describe('AllocationDetail', () => {
   it('渲染标题"明细"', () => {
     render(<AllocationDetail data={validData} />);
     expect(screen.getByText('明细')).toBeInTheDocument();
+  });
+});
+
+function makeSnapshotForPage(overrides: Partial<NetWorthSnapshot>): NetWorthSnapshot {
+  return {
+    id: 's1',
+    user_id: 'user-1',
+    snapshot_date: 0,
+    snapshot_year_month: '2026-01',
+    total_liquid: 0,
+    total_invested: 0,
+    total_use_asset: 0,
+    total_liability: 0,
+    net_worth: 0,
+    sync_version: 0,
+    updated_at: 0,
+    deleted_flag: 0,
+    ...overrides,
+  };
+}
+
+describe('NetWorthPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAppStore.setState({ currentUser: { id: 'user-1', display_name: '测试用户' } as any });
+  });
+
+  it('渲染页头"净资产趋势"', async () => {
+    (window.dataAccess.snapshot.list as any).mockResolvedValue([]);
+    render(<NetWorthPage />);
+    expect(screen.getByText('净资产趋势')).toBeInTheDocument();
+  });
+
+  it('加载中显示加载状态', () => {
+    (window.dataAccess.snapshot.list as any).mockReturnValue(new Promise(() => {}));
+    render(<NetWorthPage />);
+    // 加载中时趋势图和配比图都显示加载中（至少 1 个）
+    expect(screen.getAllByText('加载中...').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('数据加载完成后渲染所有模块', async () => {
+    const snapshots = [
+      makeSnapshotForPage({ id: 's1', snapshot_year_month: '2026-01', net_worth: 100000, total_liquid: 50000 }),
+      makeSnapshotForPage({ id: 's2', snapshot_year_month: '2026-02', net_worth: 200000, total_liquid: 80000 }),
+    ];
+    (window.dataAccess.snapshot.list as any).mockResolvedValue(snapshots);
+    render(<NetWorthPage />);
+    // 等待数据加载完成，趋势图渲染
+    expect(await screen.findByTestId('line-chart')).toBeInTheDocument();
+    // 配比图渲染
+    expect(screen.getByTestId('pie-chart')).toBeInTheDocument();
+    // 明细显示
+    expect(screen.getByText('流动资产')).toBeInTheDocument();
+  });
+
+  it('数据加载失败显示错误提示', async () => {
+    (window.dataAccess.snapshot.list as any).mockRejectedValue(new Error('网络错误'));
+    render(<NetWorthPage />);
+    expect(await screen.findByText('数据加载失败，请重试')).toBeInTheDocument();
+  });
+
+  it('空数据显示各模块空状态', async () => {
+    (window.dataAccess.snapshot.list as any).mockResolvedValue([]);
+    render(<NetWorthPage />);
+    // 等待加载完成，空状态出现
+    expect(await screen.findByText('暂无趋势数据')).toBeInTheDocument();
+    // 配比图空状态
+    expect(screen.getByText('暂无配比数据')).toBeInTheDocument();
+    // 明细空状态
+    expect(screen.getByText('暂无明细数据')).toBeInTheDocument();
   });
 });
