@@ -32,17 +32,14 @@ nvm use 20.18.0        # 切换到 Node 20
 
 ## 快速开始
 
-### 方式一：Docker 开发环境（推荐，零本地配置）
+### 方式一：下载安装包运行（推荐，零环境配置）
 
-```bash
-docker compose up dev    # 构建并启动开发容器
-```
+1. 前往 [GitHub Actions](../../actions) 页面，找到最新成功的构建
+2. 在 Artifacts 区域下载 `fire-app-windows` 压缩包
+3. 解压后双击 `FIRE-App-Setup-0.1.0.exe` 安装运行
 
-浏览器访问 `http://localhost:6080` 即可看到应用 GUI（noVNC web 访问）。
-
-> 首次构建需 5-10 分钟（下载基础镜像 + 安装依赖 + 编译原生模块）。
-> 后续启动秒级（镜像已缓存）。
-> 详见 [Docker 开发环境文档](docs/docker-dev.md)。
+> 无需安装 Node.js、pnpm 或任何开发工具——安装包内置完整 Electron 运行时。
+> 正式版本见 [Releases](../../releases) 页面。
 
 ### 方式二：本地开发环境
 
@@ -55,12 +52,21 @@ pnpm dev        # 启动开发模式
 > 若已安装过依赖，直接 `pnpm dev` 即可。
 > 遇到环境问题可随时跑 `pnpm check-env` 诊断。
 
+### 打包发布
+
+```bash
+pnpm dist       # 本地打包（需要本地环境正常）
+# 或推送到 main 让 CI 自动打包
+git push origin main
+```
+
 ## 常用命令
 
 | 命令 | 作用 |
 |------|------|
 | `pnpm dev` | 启动 Electron 开发模式 |
 | `pnpm build` | 构建桌面应用 |
+| `pnpm dist` | 打包 Windows 安装包（.exe） |
 | `pnpm test:shared` | 运行 shared 包测试 |
 | `pnpm --filter @fire-app/desktop rebuild` | 手动重新编译原生模块 |
 
