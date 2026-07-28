@@ -14,12 +14,12 @@
   },
   "dependencies": {
     "@fire-app/shared": "workspace:*",
+    "better-sqlite3": "^11.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.0.0",
-    "zustand": "^5.0.0",
-    "better-sqlite3": "^11.0.0",
-    "uuid": "^10.0.0"
+    "uuid": "^10.0.0",
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
     "@electron/rebuild": "^3.6.0",
@@ -34,6 +34,7 @@
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.3.0",
     "electron": "^31.0.0",
+    "electron-builder": "^25",
     "electron-vite": "^2.0.0",
     "jsdom": "^25.0.0",
     "tailwindcss": "^4.0.0",
