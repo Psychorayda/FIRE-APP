@@ -34,6 +34,17 @@ jobs:
       - name: Build app
         run: pnpm --filter @fire-app/desktop build
 
+      - name: Strip workspace dep before packaging
+        run: |
+          node -e "
+            const fs = require('fs');
+            const p = 'apps/desktop/package.json';
+            const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
+            delete pkg.dependencies['@fire-app/shared'];
+            fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
+            console.log('Removed @fire-app/shared from dependencies (already bundled into out/)');
+          "
+
       - name: Package .exe
         run: pnpm --filter @fire-app/desktop exec electron-builder --config electron-builder.yml
         env:
