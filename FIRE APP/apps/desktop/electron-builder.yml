@@ -5,6 +5,10 @@
 appId: com.fireapp.desktop
 productName: FIRE App
 
+# 关闭自动发布：CI 检测到 GH_TOKEN 会尝试发布到 Releases，但当前只需构建 .exe 下载验证
+# 打 tag 时再通过 workflow 的 softprops/action-gh-release 单独发布
+publish: null
+
 directories:
   output: ../../release    # 产物输出到项目根 release/
   buildResources: build     # 图标等资源目录（apps/desktop/build/）
