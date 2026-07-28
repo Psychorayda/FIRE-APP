@@ -3,9 +3,13 @@ import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
+// 不 external 的依赖：会被打包进 out/ 产物（解决 monorepo workspace 符号链接打包问题）
+// Deps NOT externalized: bundled into out/ (fixes monorepo workspace symlink packaging)
+const noExternal = ['@fire-app/shared'];
+
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: noExternal })],
     resolve: {
       alias: {
         '@shared': resolve(__dirname, '../../packages/shared/src'),
@@ -13,7 +17,7 @@ export default defineConfig({
     },
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: noExternal })],
     resolve: {
       alias: {
         '@shared': resolve(__dirname, '../../packages/shared/src'),
