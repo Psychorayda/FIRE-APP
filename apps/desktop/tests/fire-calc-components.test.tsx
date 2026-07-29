@@ -173,3 +173,50 @@ describe('ScenarioForm', () => {
     expect(screen.getByText('当前年龄需在 18-80 之间')).toBeInTheDocument();
   });
 });
+
+import { ResultCards } from '@renderer/components/fire-calculator/ResultCards.js';
+import type { ProjectionResult } from '@shared/services/fire-calc.js';
+
+function makeProjection(overrides: Partial<ProjectionResult>): ProjectionResult {
+  return {
+    fire_number: 1500000000,
+    adjusted_fire_number: 1500000000,
+    retirement_portfolio: 2000000000,
+    progress: 66.7,
+    monthly_projection: [],
+    ...overrides,
+  };
+}
+
+describe('ResultCards', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('loading 时显示加载中', () => {
+    render(<ResultCards result={null} loading={true} />);
+    // 4 张卡都显示加载中（getAllByText）
+    expect(screen.getAllByText('加载中...')).toHaveLength(4);
+  });
+
+  it('result 为 null 时显示暂无数据', () => {
+    render(<ResultCards result={null} loading={false} />);
+    expect(screen.getAllByText('暂无数据')).toHaveLength(4);
+  });
+
+  it('渲染 4 个卡片标签', () => {
+    render(<ResultCards result={makeProjection({})} loading={false} />);
+    expect(screen.getByText('FIRE Number')).toBeInTheDocument();
+    expect(screen.getByText('调整后 FIRE Number')).toBeInTheDocument();
+    expect(screen.getByText('当前进度')).toBeInTheDocument();
+    expect(screen.getByText('退休时资产')).toBeInTheDocument();
+  });
+
+  it('金额和进度格式化正确（分→元）', () => {
+    render(<ResultCards result={makeProjection({ fire_number: 1500000000, progress: 66.7 })} loading={false} />);
+    // 1500000000 分 = 15000000 元 = ¥15,000,000.00
+    // fire_number 与 adjusted_fire_number 默认相同，两张卡显示同一金额，用 getAllByText
+    expect(screen.getAllByText('¥15,000,000.00').length).toBeGreaterThan(0);
+    expect(screen.getByText('66.7%')).toBeInTheDocument();
+  });
+});
