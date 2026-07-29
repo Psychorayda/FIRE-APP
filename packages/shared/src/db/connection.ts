@@ -22,9 +22,17 @@ export function createDatabase(path: string = 'data/fire-app.db'): DatabaseType 
 
 /**
  * 关闭数据库连接
+ * 先执行 WAL checkpoint 将日志合并到主库，再关闭连接
+ * WAL checkpoint before close to ensure all data is persisted to the main database file
  */
 export function closeDatabase(db: DatabaseType): void {
   if (db.open) {
+    try {
+      db.pragma('wal_checkpoint(TRUNCATE)');
+    } catch {
+      // checkpoint 失败不阻塞关闭
+      // checkpoint failure should not block close
+    }
     db.close();
   }
 }

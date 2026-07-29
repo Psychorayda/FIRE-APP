@@ -60,3 +60,9 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
+
+// 兜底：before-quit 确保数据库关闭（window-all-closed 未触发时）
+// Fallback: before-quit ensures DB close (when window-all-closed doesn't fire)
+app.on('before-quit', () => {
+  closeAppDatabase();
+});
