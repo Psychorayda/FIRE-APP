@@ -291,3 +291,101 @@ describe('ProjectionChart', () => {
     expect(screen.getByTestId('reference-line')).toBeInTheDocument();
   });
 });
+
+import { FireCalculatorPage } from '@renderer/pages/FireCalculatorPage.js';
+import { useAppStore } from '@renderer/stores/app-store.js';
+import { useScenarioStore } from '@renderer/stores/scenario-store.js';
+import type { User } from '@shared/types/index.js';
+
+function makeUser(overrides: Partial<User>): User {
+  return {
+    id: 'user-1',
+    display_name: 'test',
+    base_currency: 'CNY',
+    is_china_market: 1,
+    default_withdrawal_rate: 350,
+    default_expected_return: 700,
+    default_inflation_rate: 300,
+    encryption_key_hash: null,
+    last_sync_at: null,
+    sync_version: 0,
+    updated_at: 0,
+    deleted_flag: 0,
+    ...overrides,
+  };
+}
+
+describe('FireCalculatorPage 集成', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // 重置 stores
+    useAppStore.getState().clearError();
+    useScenarioStore.getState().clear();
+    // 默认 mock
+    (window.dataAccess.scenario.list as any).mockResolvedValue([]);
+    (window.dataAccess.scenario.create as any).mockResolvedValue(undefined);
+    (window.dataAccess.scenario.update as any).mockResolvedValue(undefined);
+    (window.dataAccess.fireCalc.runProjection as any).mockResolvedValue(makeProjection({}));
+    (window.dataAccess.account.investableBalance as any).mockResolvedValue(0);
+  });
+
+  it('无场景时显示介绍页', async () => {
+    (window.dataAccess.scenario.list as any).mockResolvedValue([]);
+    useAppStore.setState({ currentUser: makeUser({}) as any });
+
+    render(<FireCalculatorPage />);
+
+    expect(await screen.findByText('开始你的 FIRE 之旅')).toBeInTheDocument();
+  });
+
+  it('有场景时显示表单和结果', async () => {
+    const scenarios = [makeScenario({ id: 's1', name: '标准' })];
+    (window.dataAccess.scenario.list as any).mockResolvedValue(scenarios);
+    useAppStore.setState({ currentUser: makeUser({}) as any });
+
+    render(<FireCalculatorPage />);
+
+    expect(await screen.findByText('标准')).toBeInTheDocument();
+    expect(screen.getByText('基本参数')).toBeInTheDocument();
+    expect(screen.getByText('FIRE Number')).toBeInTheDocument();
+  });
+
+  it('点击介绍页按钮创建场景', async () => {
+    (window.dataAccess.scenario.list as any)
+      .mockResolvedValueOnce([]) // 初始 fetch
+      .mockResolvedValueOnce([makeScenario({ id: 's-new', name: '我的 FIRE 计划' })]); // 创建后
+    useAppStore.setState({ currentUser: makeUser({}) as any });
+
+    render(<FireCalculatorPage />);
+
+    const btn = await screen.findByText('创建第一个场景');
+    fireEvent.click(btn);
+
+    expect(await screen.findByText('我的 FIRE 计划')).toBeInTheDocument();
+    expect(window.dataAccess.scenario.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('切换场景触发 runProjection', async () => {
+    const scenarios = [makeScenario({ id: 's1', name: 'A' }), makeScenario({ id: 's2', name: 'B' })];
+    (window.dataAccess.scenario.list as any).mockResolvedValue(scenarios);
+    useAppStore.setState({ currentUser: makeUser({}) as any });
+
+    render(<FireCalculatorPage />);
+    await screen.findByText('A');
+    vi.clearAllMocks();
+
+    fireEvent.click(screen.getByText('B'));
+    expect(window.dataAccess.fireCalc.runProjection).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 's2' })
+    );
+  });
+
+  it('加载失败显示错误提示', async () => {
+    (window.dataAccess.scenario.list as any).mockRejectedValue(new Error('加载失败'));
+    useAppStore.setState({ currentUser: makeUser({}) as any });
+
+    render(<FireCalculatorPage />);
+
+    expect(await screen.findByText('数据加载失败，请重试')).toBeInTheDocument();
+  });
+});
