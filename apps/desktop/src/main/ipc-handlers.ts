@@ -11,6 +11,7 @@ import { registerRecurringHandlers } from './ipc/recurring-handlers.js';
 import { registerScenarioHandlers } from './ipc/scenario-handlers.js';
 import { registerSnapshotHandlers } from './ipc/snapshot-handlers.js';
 import { registerFireCalcHandlers } from './ipc/fire-calc-handlers.js';
+import { registerExportImportHandlers } from './ipc/export-import-handlers.js';
 
 /**
  * 注册所有 IPC handler / Register all IPC handlers
@@ -27,6 +28,7 @@ export function registerIpcHandlers(): void {
   registerScenarioHandlers(db);
   registerSnapshotHandlers(db);
   registerFireCalcHandlers(db);
+  registerExportImportHandlers(db);
 
-  console.log('[IPC] 已注册 36 个 IPC handler');
+  console.log('[IPC] 已注册所有 IPC handler');
 }

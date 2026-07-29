@@ -13,6 +13,10 @@ import type { CreateRecurringInput } from '@shared/models/recurring.js';
 import type { CreateScenarioInput } from '@shared/models/scenario.js';
 import type { CreateTransactionInput, EditTransactionInput } from '@shared/services/transaction-service.js';
 import type { ProjectionResult } from '@shared/services/fire-calc.js';
+import type { ExportTableName } from '@shared/services/export-service.js';
+import type { ImportResult } from '@shared/services/import-service.js';
+import type { ClearResult } from '@shared/services/clear-service.js';
+import type { ParsedCsvTransaction } from '@shared/import-templates/types.js';
 
 /**
  * 数据访问端口接口
@@ -78,4 +82,23 @@ export interface DataAccessPort {
 
   // ===== FireCalc =====
   runProjection(scenario: FireScenario): Promise<ProjectionResult>;
+
+  // ===== Export/Import/Clear =====
+  exportImport: {
+    exportJson(filePath: string): Promise<{ success: boolean; recordCount: number }>;
+    exportCsv(filePath: string, table: ExportTableName): Promise<{ success: boolean; recordCount: number }>;
+    importJson(filePath: string): Promise<ImportResult>;
+    parseCsv(templateId: string, filePath: string): Promise<ParsedCsvTransaction[]>;
+    importCsvTransactions(params: {
+      templateId: string;
+      filePath: string;
+      accountId: string;
+      transactions: ParsedCsvTransaction[];
+    }): Promise<ImportResult>;
+    markDuplicates(accountId: string, transactions: ParsedCsvTransaction[]): Promise<ParsedCsvTransaction[]>;
+    detectTemplate(filePath: string): Promise<string | null>;
+    clearTransactions(): Promise<ClearResult>;
+    showSaveDialog(defaultName: string, extension: 'json' | 'csv'): Promise<{ canceled: boolean; filePath: string | null }>;
+    showOpenDialog(extensions: string[]): Promise<{ canceled: boolean; filePath: string | null }>;
+  };
 }

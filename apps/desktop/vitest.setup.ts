@@ -76,4 +76,16 @@ window.dataAccess = {
   fireCalc: {
     runProjection: fn(),
   },
+  exportImport: {
+    exportJson: fn(),
+    exportCsv: fn(),
+    importJson: fn(),
+    parseCsv: fn(),
+    importCsvTransactions: fn(),
+    markDuplicates: fn(),
+    detectTemplate: fn(),
+    clearTransactions: fn(),
+    showSaveDialog: fn(),
+    showOpenDialog: fn(),
+  },
 } as any;

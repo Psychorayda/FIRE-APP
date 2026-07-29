@@ -76,6 +76,22 @@ const dataAccess = {
   fireCalc: {
     runProjection: (scenario: unknown) => ipcRenderer.invoke('db:fireCalc:runProjection', scenario),
   },
+
+  // 导出/导入/清空 / Export/Import/Clear
+  exportImport: {
+    exportJson: (filePath: string) => ipcRenderer.invoke('export:json', filePath),
+    exportCsv: (filePath: string, table: string) => ipcRenderer.invoke('export:csv', filePath, table),
+    importJson: (filePath: string) => ipcRenderer.invoke('import:json', filePath),
+    parseCsv: (templateId: string, filePath: string) => ipcRenderer.invoke('import:parseCsv', templateId, filePath),
+    importCsvTransactions: (params: unknown) => ipcRenderer.invoke('import:csvTransactions', params),
+    markDuplicates: (accountId: string, transactions: unknown) => ipcRenderer.invoke('import:markDuplicates', accountId, transactions),
+    detectTemplate: (filePath: string) => ipcRenderer.invoke('import:detectTemplate', filePath),
+    clearTransactions: () => ipcRenderer.invoke('clear:transactions'),
+    showSaveDialog: (defaultName: string, extension: 'json' | 'csv') =>
+      ipcRenderer.invoke('dialog:save', { defaultName, extension }),
+    showOpenDialog: (extensions: string[]) =>
+      ipcRenderer.invoke('dialog:open', { extensions }),
+  },
 };
 
 // 将 dataAccess 挂载到 window 上

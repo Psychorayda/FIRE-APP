@@ -13,6 +13,8 @@ import type {
   NetWorthSnapshot, FireScenario, CategoryType,
 } from '@shared/types/index.js';
 import type { ProjectionResult } from '@shared/services/fire-calc.js';
+import type { ExportTableName } from '@shared/services/export-service.js';
+import type { ParsedCsvTransaction } from '@shared/import-templates/types.js';
 
 /**
  * DataAccessPort 的 IPC 实现
@@ -75,4 +77,22 @@ export class IpcDataAccess implements DataAccessPort {
 
   // ===== FireCalc =====
   runProjection(scenario: FireScenario) { return window.dataAccess.fireCalc.runProjection(scenario); }
+
+  // ===== Export/Import/Clear =====
+  exportImport = {
+    exportJson: (filePath: string) => window.dataAccess.exportImport.exportJson(filePath),
+    exportCsv: (filePath: string, table: ExportTableName) => window.dataAccess.exportImport.exportCsv(filePath, table),
+    importJson: (filePath: string) => window.dataAccess.exportImport.importJson(filePath),
+    parseCsv: (templateId: string, filePath: string) => window.dataAccess.exportImport.parseCsv(templateId, filePath),
+    importCsvTransactions: (params: {
+      templateId: string; filePath: string; accountId: string; transactions: ParsedCsvTransaction[];
+    }) => window.dataAccess.exportImport.importCsvTransactions(params),
+    markDuplicates: (accountId: string, transactions: ParsedCsvTransaction[]) =>
+      window.dataAccess.exportImport.markDuplicates(accountId, transactions),
+    detectTemplate: (filePath: string) => window.dataAccess.exportImport.detectTemplate(filePath),
+    clearTransactions: () => window.dataAccess.exportImport.clearTransactions(),
+    showSaveDialog: (defaultName: string, extension: 'json' | 'csv') =>
+      window.dataAccess.exportImport.showSaveDialog(defaultName, extension),
+    showOpenDialog: (extensions: string[]) => window.dataAccess.exportImport.showOpenDialog(extensions),
+  };
 }

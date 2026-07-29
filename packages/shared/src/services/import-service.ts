@@ -44,7 +44,7 @@ export function importJsonWithLww(db: DatabaseType, envelope: ExportEnvelope): I
   try {
     db.transaction(() => {
       for (const tableName of processOrder) {
-        const records = (envelope.data as Record<string, Record<string, unknown>[]>)[tableName] ?? [];
+        const records = (envelope.data as unknown as Record<string, Record<string, unknown>[]>)[tableName] ?? [];
         for (const record of records) {
           const normalized = normalizeUserId(record, localUserId, tableName);
           const action = mergeRecordLww(db, tableName, normalized);
