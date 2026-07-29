@@ -220,3 +220,29 @@ describe('ResultCards', () => {
     expect(screen.getByText('66.7%')).toBeInTheDocument();
   });
 });
+
+import { ProgressGauge } from '@renderer/components/fire-calculator/ProgressGauge.js';
+
+describe('ProgressGauge', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('渲染环形图和百分比', () => {
+    render(<ProgressGauge progress={66.7} fireNumber={1500000000} currentValue={1000000000} />);
+    expect(screen.getByTestId('radial-bar-chart')).toBeInTheDocument();
+    expect(screen.getByText('66.7%')).toBeInTheDocument();
+  });
+
+  it('底部标注显示当前值 → FIRE Number', () => {
+    render(<ProgressGauge progress={66.7} fireNumber={1500000000} currentValue={1000000000} />);
+    // 1000000000 分 = 10000000 元 = ¥10,000,000.00
+    // 1500000000 分 = 15000000 元 = ¥15,000,000.00
+    expect(screen.getByText('¥10,000,000.00 → ¥15,000,000.00')).toBeInTheDocument();
+  });
+
+  it('progress=0 显示 0%', () => {
+    render(<ProgressGauge progress={0} fireNumber={1500000000} currentValue={0} />);
+    expect(screen.getByText('0%')).toBeInTheDocument();
+  });
+});
