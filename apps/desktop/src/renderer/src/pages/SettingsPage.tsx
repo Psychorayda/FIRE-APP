@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '../components/base/Button.js';
 import { Input } from '../components/base/Input.js';
+import { DataManagementPanel } from '../components/data-management/DataManagementPanel.js';
 import { dataAccess } from '../data/data-access.js';
 import { useAppStore } from '../stores/app-store.js';
 import { useToastStore } from '../stores/toast-store.js';
@@ -293,6 +294,11 @@ export function SettingsPage() {
             </div>
           </div>
         )}
+      </section>
+
+      {/* 数据管理区 / Data management section */}
+      <section>
+        <DataManagementPanel />
       </section>
 
       {/* 重置确认对话框 / Reset confirmation dialog */}

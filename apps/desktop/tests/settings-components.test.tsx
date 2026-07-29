@@ -190,4 +190,19 @@ describe('SettingsPage', () => {
       expect(screen.queryByText('确认重置内置分类')).not.toBeInTheDocument();
     });
   });
+
+  describe('数据管理区集成', () => {
+    it('SettingsPage 渲染数据管理面板四大功能块', async () => {
+      useAppStore.setState({ currentUser: makeUser({}) });
+
+      render(<SettingsPage />);
+      await screen.findByText('住房');
+
+      // DataManagementPanel 内嵌于 SettingsPage，四个功能块标题应同时可见
+      expect(screen.getByText('备份与恢复')).toBeInTheDocument();
+      expect(screen.getByText('数据导出')).toBeInTheDocument();
+      expect(screen.getByText('交易导入')).toBeInTheDocument();
+      expect(screen.getByText('危险操作')).toBeInTheDocument();
+    });
+  });
 });
