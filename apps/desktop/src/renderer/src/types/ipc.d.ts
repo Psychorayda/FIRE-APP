@@ -45,6 +45,7 @@ export interface DataAccessAPI {
     get(id: string): Promise<Category | null>;
     list(userId: string, type?: CategoryType): Promise<Category[]>;
     seed(userId: string): Promise<void>;
+    resetSystem(userId: string): Promise<void>;
   };
 
   // 交易 / Transaction

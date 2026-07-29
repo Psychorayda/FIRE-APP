@@ -46,6 +46,7 @@ window.dataAccess = {
     get: fn(),
     list: fn(),
     seed: fn(),
+    resetSystem: fn(),
   },
   tx: {
     get: fn(),

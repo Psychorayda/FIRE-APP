@@ -46,6 +46,7 @@ export class IpcDataAccess implements DataAccessPort {
   getCategory(id: string) { return window.dataAccess.category.get(id); }
   getCategories(userId: string, type?: CategoryType) { return window.dataAccess.category.list(userId, type); }
   seedCategories(userId: string) { return window.dataAccess.category.seed(userId); }
+  resetSystemCategories(userId: string) { return window.dataAccess.category.resetSystem(userId); }
 
   // ===== Transaction =====
   getTransaction(id: string) { return window.dataAccess.tx.get(id); }

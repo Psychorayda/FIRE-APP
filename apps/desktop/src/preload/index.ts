@@ -36,6 +36,7 @@ const dataAccess = {
     get: (id: string) => ipcRenderer.invoke('db:category:get', id),
     list: (userId: string, type?: string) => ipcRenderer.invoke('db:category:list', userId, type),
     seed: (userId: string) => ipcRenderer.invoke('db:category:seed', userId),
+    resetSystem: (userId: string) => ipcRenderer.invoke('db:category:resetSystem', userId),
   },
 
   // 交易 / Transaction

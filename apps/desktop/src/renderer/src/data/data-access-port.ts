@@ -49,6 +49,7 @@ export interface DataAccessPort {
   getCategory(id: string): Promise<Category | null>;
   getCategories(userId: string, type?: CategoryType): Promise<Category[]>;
   seedCategories(userId: string): Promise<void>;
+  resetSystemCategories(userId: string): Promise<void>;
 
   // ===== Transaction =====
   getTransaction(id: string): Promise<Transaction | null>;
