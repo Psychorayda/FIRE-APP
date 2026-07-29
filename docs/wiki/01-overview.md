@@ -1,7 +1,7 @@
 # 01-overview.md — 项目概览
 
-> **最后更新**: 2026-07-15
-> **对应代码**: `fire-app/src/`
+> **最后更新**: 2026-07-29
+> **对应代码**: `packages/shared/src/`（数据层）+ `apps/desktop/src/`（桌面端）
 > **导航**: [← 返回主页](CODE_WIKI.md) | [下一节](02-database.md)
 
 ---
@@ -14,7 +14,7 @@ FIRE APP 是一个**个人 FIRE 财务计算应用**。"FIRE" 是 **Financial In
 
 FIRE 方法论的两个核心概念在本应用中有直接体现：
 
-- **FIRE Number（FIRE 数字）**：达到财务独立所需的可投资资产总额。经典公式为 `FIRE Number = 年支出 × (10000 / 提款率基点)`。在 4% 规则（提款率 400 基点）下，FIRE Number = 25 倍年支出；中国市场建议下调至 3.5%（350 基点），即约 28.57 倍年支出。计算见 [fire-calc.ts](file:///workspace/FIRE%20APP/fire-app/src/services/fire-calc.ts) 的 `calculateFireNumber`。
+- **FIRE Number（FIRE 数字）**：达到财务独立所需的可投资资产总额。经典公式为 `FIRE Number = 年支出 × (10000 / 提款率基点)`。在 4% 规则（提款率 400 基点）下，FIRE Number = 25 倍年支出；中国市场建议下调至 3.5%（350 基点），即约 28.57 倍年支出。计算见 [fire-calc.ts](file:///workspace/packages/shared/src/services/fire-calc.ts) 的 `calculateFireNumber`。
 - **4% 法则（four_percent_rule）**：退休后每年从投资组合中提取 4%（中国市场 3.5%），组合在理论上可永续支撑。本应用通过 `withdrawal_rate` 字段（基点存储）参数化该法则，允许用户按保守/标准/激进多场景对比。
 
 ### 1.2 核心功能
@@ -56,22 +56,23 @@ FIRE APP 面向**个人使用**，定位为本地优先（local-first）、离�
 
 | 层次 | 状态 | 说明 |
 |------|------|------|
-| 数据库层（7 张表 + 9 索引） | ✅ 已实现 | [schema.ts](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts) + [connection.ts](file:///workspace/FIRE%20APP/fire-app/src/db/connection.ts) |
-| 类型定义（5 枚举 + 7 接口） | ✅ 已实现 | [types/index.ts](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts) |
-| 数据模型层（7 个 model 文件，27 个函数） | ✅ 已实现 | [models/](file:///workspace/FIRE%20APP/fire-app/src/models/) |
-| 业务服务层（4 个 service 文件） | ✅ 已实现 | [services/](file:///workspace/FIRE%20APP/fire-app/src/services/) |
-| 工具模块（money / sync / time） | ✅ 已实现 | [utils/](file:///workspace/FIRE%20APP/fire-app/src/utils/) |
-| 测试套件（12 单元 + 1 集成） | ✅ 已实现 | [tests/](file:///workspace/FIRE%20APP/fire-app/tests/) |
-| 前端代码（IPC、React 组件、状态管理） | ⏳ 规划中 | 数据层已落地，前端代码**尚未落地**，见前端架构 spec |
+| 数据库层（7 张表 + 9 索引） | ✅ 已实现 | [schema.ts](file:///workspace/packages/shared/src/db/schema.ts) + [connection.ts](file:///workspace/packages/shared/src/db/connection.ts) |
+| 类型定义（5 枚举 + 7 接口） | ✅ 已实现 | [types/index.ts](file:///workspace/packages/shared/src/types/index.ts) |
+| 数据模型层（7 个 model 文件，27 个函数） | ✅ 已实现 | [models/](file:///workspace/packages/shared/src/models/) |
+| 业务服务层（4 个 service 文件） | ✅ 已实现 | [services/](file:///workspace/packages/shared/src/services/) |
+| 工具模块（money / sync / time） | ✅ 已实现 | [utils/](file:///workspace/packages/shared/src/utils/) |
+| 测试套件（12 单元 + 1 集成） | ✅ 已实现 | [tests/](file:///workspace/packages/shared/tests/) |
+| Electron 层（main 主进程 / preload / renderer 渲染层） | ✅ 已实现 | `apps/desktop/src/main/` + `apps/desktop/src/preload/` + `apps/desktop/src/renderer/` |
+| 前端代码（IPC 通道 / React 19 组件 / Zustand 状态管理） | ✅ 已实现 | 数据层位于 `packages/shared`，桌面端位于 `apps/desktop`，见前端架构 spec |
 | 加密同步层 | ⏳ 规划中 | 数据模型预留同步字段，同步引擎未实现 |
 
-当前仓库的核心成果是**完整的本地数据层与 FIRE 计算引擎**——从数据库 schema、类型契约、CRUD 模型、事务化服务到测试覆盖，已构成可独立运行的后端核心；前端 UI 与跨设备同步为后续里程碑。
+当前仓库的核心成果是**完整的本地数据层、FIRE 计算引擎与 Electron 桌面端**——从数据库 schema、类型契约、CRUD 模型、事务化服务到测试覆盖，再到 Electron 主进程 + IPC 桥 + React 渲染层，已构成可运行的桌面应用；跨设备加密同步为后续里程碑。
 
 ### 1.6 参考设计文档
 
 本应用的用户数据模型设计基于：
 
-- 路径：[docs/superpowers/specs/2026-07-12-fire-app-user-data-model-design.md](file:///workspace/FIRE%20APP/docs/superpowers/specs/2026-07-12-fire-app-user-data-model-design.md)
+- 路径：[docs/superpowers/specs/2026-07-12-fire-app-user-data-model-design.md](file:///workspace/docs/superpowers/specs/2026-07-12-fire-app-user-data-model-design.md)
 - 版本：1.0 / 知识库基础：`fire-knowledge-schema.yaml` v5.0
 - 范围：用户数据模型（7 张核心表），不含 UI 设计、API 设计、计算引擎实现细节
 
@@ -83,33 +84,62 @@ FIRE APP 面向**个人使用**，定位为本地优先（local-first）、离�
 
 ### 2.1 依赖与版本
 
-以下版本信息来自 [package.json](file:///workspace/FIRE%20APP/fire-app/package.json)，Wiki 以代码为权威。
+项目已迁移为 **pnpm workspace monorepo**，依赖分布在根 `package.json`、[packages/shared/package.json](file:///workspace/packages/shared/package.json) 与 [apps/desktop/package.json](file:///workspace/apps/desktop/package.json) 三处。Wiki 以代码为权威。
+
+**根工作区**（[package.json](file:///workspace/package.json) + [pnpm-workspace.yaml](file:///workspace/pnpm-workspace.yaml)）：
+
+| 技术 | 版本 | 用途 |
+|------|------|------|
+| pnpm | >=9.0.0（packageManager pnpm@9.15.0） | workspace 包管理器，管理 `packages/*` 与 `apps/*` |
+| Node.js | >=20.0.0 <22.0.0 | 运行时（engines 约束） |
+| TypeScript | ^5.5.0 | 根 devDependency，类型系统 |
+| ESM 模块 | `"type": "module"` | 全项目使用 ES Module，import 路径带 `.js` 扩展名 |
+
+**packages/shared（数据层）**：
 
 | 技术 | 版本 | 类型 | 用途 |
 |------|------|------|------|
-| TypeScript | ^5.5.0 | devDependency | 类型系统，编译期检查；types/index.ts 为纯类型导出 |
-| Node.js | ≥ 20（由 @types/node ^20.14.0 推断） | 运行时 | JavaScript 运行时 |
 | better-sqlite3 | ^11.0.0 | dependency | SQLite 驱动，同步 API，WAL 模式 |
-| @types/better-sqlite3 | ^7.6.10 | devDependency | better-sqlite3 的类型声明 |
 | uuid | ^10.0.0 | dependency | UUID v4 生成（`v4 as uuidv4`），所有表主键 |
+| @types/better-sqlite3 | ^7.6.10 | devDependency | better-sqlite3 的类型声明 |
+| @types/node | ^20.14.0 | devDependency | Node.js 类型声明 |
 | @types/uuid | ^10.0.0 | devDependency | uuid 的类型声明 |
 | vitest | ^2.0.0 | devDependency | 测试框架，globals + node 环境 |
-| ESM 模块 | `"type": "module"` | package.json 字段 | 全项目使用 ES Module，import 路径带 `.js` 扩展名 |
+
+**apps/desktop（Electron 桌面端）**：
+
+| 技术 | 版本 | 类型 | 用途 |
+|------|------|------|------|
+| electron | ^31.0.0 | devDependency | 桌面应用壳，主进程运行时 |
+| electron-vite | ^2.0.0 | devDependency | Electron + Vite 构建工具链 |
+| electron-builder | ^25 | devDependency | 打包分发 |
+| react | ^19.0.0 | dependency | 渲染层 UI 框架 |
+| react-dom | ^19.0.0 | dependency | React DOM 渲染 |
+| react-router-dom | ^7.0.0 | dependency | 路由（6 个核心页面） |
+| zustand | ^5.0.0 | dependency | 状态管理 |
+| recharts | ^2 | dependency | 图表（净资产趋势 / FIRE 投影面积图） |
+| tailwindcss | ^4.0.0 | devDependency | 原子化 CSS（via @tailwindcss/vite） |
+| @fire-app/shared | workspace:* | dependency | 引用本仓库数据层 |
+| vitest | ^2.0.0 | devDependency | 桌面端组件 / store 测试 |
+
+> 数据层依赖（better-sqlite3 / uuid）集中在 `packages/shared`，桌面端通过 `workspace:*` 引用 `@fire-app/shared`，避免重复声明。
 
 ### 2.2 模块系统约定
 
-`package.json` 中 `"type": "module"` 使整个项目以 **ESM** 运行。源码中所有相对导入显式带 `.js` 扩展名（如 `import { nowMs } from '../utils/time.js'`），这是 TypeScript ESM 编译输出的要求——`.ts` 源文件编译为 `.js` 后，导入路径必须指向真实存在的 `.js` 文件。
+根 `package.json` 与各子包（`packages/shared`、`apps/desktop`）均声明 `"type": "module"`，使整个 monorepo 以 **ESM** 运行。`packages/shared` 源码中所有相对导入显式带 `.js` 扩展名（如 `import { nowMs } from '../utils/time.js'`），这是 TypeScript ESM 编译输出的要求——`.ts` 源文件编译为 `.js` 后，导入路径必须指向真实存在的 `.js` 文件。`apps/desktop` 渲染层由 electron-vite / Vite 打包，遵循相同的 ESM 约定。
 
-类型导入统一使用 `import type { ... }` 语法（如 `import type { Database as DatabaseType } from 'better-sqlite3'`），确保类型声明在编译期被完全擦除，不进入运行时 bundle。[types/index.ts](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts) 即为纯类型导出文件，编译后输出的 `.js` 文件为空。
+类型导入统一使用 `import type { ... }` 语法（如 `import type { Database as DatabaseType } from 'better-sqlite3'`），确保类型声明在编译期被完全擦除，不进入运行时 bundle。[types/index.ts](file:///workspace/packages/shared/src/types/index.ts) 即为纯类型导出文件，编译后输出的 `.js` 文件为空。
 
 ### 2.3 测试框架
 
-测试使用 vitest 2.0，配置见 [vitest.config.ts](file:///workspace/FIRE%20APP/fire-app/vitest.config.ts)。两个 npm 脚本：
+测试使用 vitest 2.0。`packages/shared` 与 `apps/desktop` 各有独立的 [vitest.config.ts](file:///workspace/packages/shared/vitest.config.ts)（桌面端配置在 `apps/desktop/vitest.config.ts`）。根 `package.json` 暴露的 pnpm 脚本：
 
 | 命令 | 用途 |
 |------|------|
-| `npm test` | 单次运行全部测试（`vitest run`） |
-| `npm run test:watch` | 监听模式（`vitest`），开发时自动重跑 |
+| `pnpm test:shared` | 运行 `packages/shared` 数据层测试（`vitest run`） |
+| `pnpm test:desktop` | 运行 `apps/desktop` 桌面端组件 / store 测试 |
+| `pnpm test:all` | 依次运行 shared 与 desktop 全部测试 |
+| `pnpm --filter @fire-app/shared test:watch` | 监听模式（`vitest`），开发时自动重跑 |
 
 测试约定（详见 [07-tests.md](07-tests.md)）：
 - 全部使用内存数据库（`:memory:'`），无文件 I/O，测试隔离且快速
@@ -122,15 +152,15 @@ FIRE APP 面向**个人使用**，定位为本地优先（local-first）、离�
 
 | 决策 | 体现 | 说明 |
 |------|------|------|
-| **整数存储金额** | 金额字段以"分"为单位存为 `INTEGER` | 1234.56 元 → 123456。避免 IEEE 754 浮点误差；转换见 [money.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/money.ts) 的 `yuanToCents`（两阶段取整规避 `1.005 × 100 = 100.4999...` 陷阱） |
+| **整数存储金额** | 金额字段以"分"为单位存为 `INTEGER` | 1234.56 元 → 123456。避免 IEEE 754 浮点误差；转换见 [money.ts](file:///workspace/packages/shared/src/utils/money.ts) 的 `yuanToCents`（两阶段取整规避 `1.005 × 100 = 100.4999...` 陷阱） |
 | **基点存储利率** | 利率字段以"基点"为单位存为 `INTEGER` | 1% = 100 基点，3.5% = 350。`withdrawal_rate` / `expected_return_rate` / `inflation_rate` 均用基点，避免浮点数同时保持精度 |
 | **UUID v4 主键** | 所有表 `id` 字段为 `TEXT`（UUID v4） | 支持离线创建无冲突，多设备同步无需中央 ID 分配；由 `uuid` 包的 `v4 as uuidv4` 生成 |
 | **软删除** | 所有删除操作置 `deleted_flag = 1` | 不物理删除，查询默认过滤 `deleted_flag = 0`；支持同步层删除传播；例外 `getTransactionById` 不过滤以供历史回溯 |
 | **LWW 同步** | 每表含 `sync_version` / `updated_at` / `deleted_flag` | 记录级 Last-Write-Wins，按 `updated_at` 比较决定冲突胜者（`shouldRemoteWin` 返回 `remote.updated_at >= local.updated_at`） |
 | **统一符号余额** | 资产余额 ≥ 0，负债余额 ≤ 0 | 净资产 = `SUM(current_balance)` 一条 SQL 即可计算，无需额外取反负债 |
-| **UTC 毫秒时间戳** | 所有时间字段为 `INTEGER`（Unix 毫秒） | 跨时区一致，年月提取用 `getUTCFullYear` / `getUTCMonth`（见 [time.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/time.ts) 的 `toYearMonth`） |
+| **UTC 毫秒时间戳** | 所有时间字段为 `INTEGER`（Unix 毫秒） | 跨时区一致，年月提取用 `getUTCFullYear` / `getUTCMonth`（见 [time.ts](file:///workspace/packages/shared/src/utils/time.ts) 的 `toYearMonth`） |
 | **结果不持久化** | FIRE 投影结果实时计算 | `fire_scenarios` 仅存参数，600 个月度数据点由 `runProjection` 毫秒级算出，避免数据冗余与一致性问题 |
-| **事务强一致** | 交易写操作包裹在 `db.transaction` 内 | 交易记录插入与账户余额更新原子化，任一步失败整体回滚（见 [transaction-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/transaction-service.ts)） |
+| **事务强一致** | 交易写操作包裹在 `db.transaction` 内 | 交易记录插入与账户余额更新原子化，任一步失败整体回滚（见 [transaction-service.ts](file:///workspace/packages/shared/src/services/transaction-service.ts)） |
 
 ---
 
@@ -180,7 +210,7 @@ flowchart TD
   - 承载 **FIRE 计算默认偏好**（`default_withdrawal_rate`、`default_expected_return`、`default_inflation_rate`），新建 `fire_scenarios` 时自动填入
   - `is_china_market` 标志决定默认提款率（中国市场 350 基点 = 3.5%，全球 400 基点 = 4%）
 - **与其他层关系**：被所有其他层的表通过 `user_id` 外键引用，是外键关系的根节点（无外键自身）
-- **源码**：[models/user.ts](file:///workspace/FIRE%20APP/fire-app/src/models/user.ts)（3 个函数：createUser / getUser / updateUser）
+- **源码**：[models/user.ts](file:///workspace/packages/shared/src/models/user.ts)（3 个函数：createUser / getUser / updateUser）
 
 ### 3.3 第 2 层：财务追踪层
 
@@ -193,7 +223,7 @@ flowchart TD
 - **与其他层关系**：
   - 所有表通过 `user_id` 引用用户层
   - 层内关联：`transactions.account_id` / `to_account_id` → accounts；`transactions.category_id` → categories；`transactions.recurring_id` → recurring_transactions
-- **源码**：[models/account.ts](file:///workspace/FIRE%20APP/fire-app/src/models/account.ts)、[models/transaction.ts](file:///workspace/FIRE%20APP/fire-app/src/models/transaction.ts)、[models/category.ts](file:///workspace/FIRE%20APP/fire-app/src/models/category.ts)、[models/recurring.ts](file:///workspace/FIRE%20APP/fire-app/src/models/recurring.ts)；写操作事务在 [services/transaction-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/transaction-service.ts) 与 [services/recurring-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/recurring-service.ts)
+- **源码**：[models/account.ts](file:///workspace/packages/shared/src/models/account.ts)、[models/transaction.ts](file:///workspace/packages/shared/src/models/transaction.ts)、[models/category.ts](file:///workspace/packages/shared/src/models/category.ts)、[models/recurring.ts](file:///workspace/packages/shared/src/models/recurring.ts)；写操作事务在 [services/transaction-service.ts](file:///workspace/packages/shared/src/services/transaction-service.ts) 与 [services/recurring-service.ts](file:///workspace/packages/shared/src/services/recurring-service.ts)
 
 ### 3.4 第 3 层：快照层
 
@@ -204,8 +234,8 @@ flowchart TD
   - "打开 APP 时生成"策略（本地应用无法可靠运行后台定时任务）
 - **与其他层关系**：
   - 通过 `user_id` 引用用户层
-  - **从 accounts 层聚合**：快照生成时按 `asset_class` 分组 `SUM(current_balance)` 汇总（见 [snapshot-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/snapshot-service.ts) 的 `summarizeByAssetClass`）
-- **源码**：[models/snapshot.ts](file:///workspace/FIRE%20APP/fire-app/src/models/snapshot.ts)（仅查询与插入，无 update）+ [services/snapshot-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/snapshot-service.ts)（协调幂等与聚合）
+  - **从 accounts 层聚合**：快照生成时按 `asset_class` 分组 `SUM(current_balance)` 汇总（见 [snapshot-service.ts](file:///workspace/packages/shared/src/services/snapshot-service.ts) 的 `summarizeByAssetClass`）
+- **源码**：[models/snapshot.ts](file:///workspace/packages/shared/src/models/snapshot.ts)（仅查询与插入，无 update）+ [services/snapshot-service.ts](file:///workspace/packages/shared/src/services/snapshot-service.ts)（协调幂等与聚合）
 
 ### 3.5 第 4 层：FIRE 投影层
 
@@ -215,19 +245,19 @@ flowchart TD
   - 两个 CHECK 约束：`retirement_age > current_age`、`withdrawal_rate BETWEEN 200 AND 600`（2%-6% 合理区间）
   - `auto_sync_assets = 1` 时从 accounts 实时汇总可投资余额作为投影起点
 - **关键特性：结果实时计算，不持久化**
-  - `fire_scenarios` 表**只存输入参数**，投影结果（`fire_number`、`adjusted_fire_number`、`monthly_projection` 600 个月度数据点）由 [services/fire-calc.ts](file:///workspace/FIRE%20APP/fire-app/src/services/fire-calc.ts) 的 `runProjection` 每次实时计算返回
+  - `fire_scenarios` 表**只存输入参数**，投影结果（`fire_number`、`adjusted_fire_number`、`monthly_projection` 600 个月度数据点）由 [services/fire-calc.ts](file:///workspace/packages/shared/src/services/fire-calc.ts) 的 `runProjection` 每次实时计算返回
   - 设计动机：FIRE 公式计算在毫秒级完成，持久化会导致数据冗余与一致性问题（参数修改后结果过期）
 - **与其他层关系**：
   - 通过 `user_id` 引用用户层
   - **从 accounts 层读取**：`runProjection` 调用 `getInvestableBalance`（liquid + invested）作为 `current_portfolio_value`
-- **源码**：[models/scenario.ts](file:///workspace/FIRE%20APP/fire-app/src/models/scenario.ts)（CRUD）+ [services/fire-calc.ts](file:///workspace/FIRE%20APP/fire-app/src/services/fire-calc.ts)（纯计算引擎，无写库）
+- **源码**：[models/scenario.ts](file:///workspace/packages/shared/src/models/scenario.ts)（CRUD）+ [services/fire-calc.ts](file:///workspace/packages/shared/src/services/fire-calc.ts)（纯计算引擎，无写库）
 
 ### 3.6 层间数据流小结
 
 4 层之间的数据流是**单向向下**的：上层（用户层）提供身份与偏好，中层（财务追踪层）产生原始数据，下层（快照层、投影层）消费上层数据进行聚合与计算。具体数据流：
 
 1. 用户层 → 财务追踪层：`user_id` 外键 + FIRE 默认偏好参数
-2. 财务追踪层内部：交易写入时事务内联动账户余额（[transaction-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/transaction-service.ts)）
+2. 财务追踪层内部：交易写入时事务内联动账户余额（[transaction-service.ts](file:///workspace/packages/shared/src/services/transaction-service.ts)）
 3. 财务追踪层 → 快照层：账户余额按 `asset_class` 聚合为月度快照
 4. 财务追踪层 → FIRE 投影层：可投资余额（liquid + invested）作为投影起点；投影结果不回流到任何表
 
@@ -263,13 +293,13 @@ FIRE APP 的数据模型基于 **`fire-knowledge-schema.yaml` v5.0** 知识库�
 
 知识库对齐通过两种机制实现：
 
-1. **字段级映射**：`users` 表的 `is_china_market`、`default_withdrawal_rate`、`default_expected_return`、`default_inflation_rate` 等字段直接承载知识库概念参数。新建 FIRE 场景时这些默认值被填入 `fire_scenarios`，使知识库假设成为计算引擎的输入。`is_china_market` 标志是核心开关——它控制默认提款率（中国市场 350 基点 vs 全球 400 基点），并在 `createUser` 中根据该标志决定 `default_withdrawal_rate` 的默认值（见 [user.ts](file:///workspace/FIRE%20APP/fire-app/src/models/user.ts) 的 `createUser`）。
+1. **字段级映射**：`users` 表的 `is_china_market`、`default_withdrawal_rate`、`default_expected_return`、`default_inflation_rate` 等字段直接承载知识库概念参数。新建 FIRE 场景时这些默认值被填入 `fire_scenarios`，使知识库假设成为计算引擎的输入。`is_china_market` 标志是核心开关——它控制默认提款率（中国市场 350 基点 vs 全球 400 基点），并在 `createUser` 中根据该标志决定 `default_withdrawal_rate` 的默认值（见 [user.ts](file:///workspace/packages/shared/src/models/user.ts) 的 `createUser`）。
 
-2. **概念关联字段**：`categories` 表的 `linked_fire_concept` 字段将收支分类与知识库概念 ID 关联。18 个内置种子分类中有 **5 个**带 `linked_fire_concept` 值（保险→`insurance_planning`、医疗→`china_medical_insurance`、债务还款→`debt_management`、租金收入→`retirement_income_diversification`、社保养老金→`china_pension_system`），可用于在应用中展示相关知识提示（如用户记录保险支出时展示对应概念的 key_insight）。种子分类定义见 [category.ts](file:///workspace/FIRE%20APP/fire-app/src/models/category.ts) 的 `SEED_CATEGORIES` 数组（[category.ts:18-39](file:///workspace/FIRE%20APP/fire-app/src/models/category.ts#L18-L39)）。
+2. **概念关联字段**：`categories` 表的 `linked_fire_concept` 字段将收支分类与知识库概念 ID 关联。18 个内置种子分类中有 **5 个**带 `linked_fire_concept` 值（保险→`insurance_planning`、医疗→`china_medical_insurance`、债务还款→`debt_management`、租金收入→`retirement_income_diversification`、社保养老金→`china_pension_system`），可用于在应用中展示相关知识提示（如用户记录保险支出时展示对应概念的 key_insight）。种子分类定义见 [category.ts](file:///workspace/packages/shared/src/models/category.ts) 的 `SEED_CATEGORIES` 数组（[category.ts:18-39](file:///workspace/packages/shared/src/models/category.ts#L18-L39)）。
 
 ### 4.4 计算引擎与知识库公式的对应
 
-FIRE 计算引擎（[fire-calc.ts](file:///workspace/FIRE%20APP/fire-app/src/services/fire-calc.ts)）直接实现知识库 `compound_growth_projection` 概念的数学公式，使投影结果与知识库定义的方法论一致：
+FIRE 计算引擎（[fire-calc.ts](file:///workspace/packages/shared/src/services/fire-calc.ts)）直接实现知识库 `compound_growth_projection` 概念的数学公式，使投影结果与知识库定义的方法论一致：
 
 | 知识库公式 | 代码实现 | 函数 |
 |-----------|---------|------|
@@ -286,42 +316,59 @@ FIRE 计算引擎（[fire-calc.ts](file:///workspace/FIRE%20APP/fire-app/src/ser
 
 ### 5.1 整体结构
 
+项目采用 **pnpm workspace monorepo** 布局，由 `pnpm-workspace.yaml` 管理 `packages/*` 与 `apps/*` 两个子目录。数据层与桌面端代码分离，数据层可被未来 React Native 移动端复用。
+
 ```
-FIRE APP/
-├── fire-app/                    # 应用主代码（数据层 + 测试）
-│   ├── src/                     # 源码
-│   │   ├── db/                  # 数据库层：连接管理 + schema 定义
-│   │   ├── models/              # 数据模型层：7 个文件，每文件对应一张表
-│   │   ├── services/            # 业务服务层：4 个文件，事务与算法
-│   │   ├── types/               # 类型定义：纯类型导出（5 枚举 + 7 接口）
-│   │   └── utils/               # 工具模块：金额/同步/时间
-│   ├── tests/                   # 测试套件（12 单元 + 1 集成）
-│   │   ├── db/                  # 数据库层测试
-│   │   ├── models/              # 模型层测试
-│   │   ├── services/            # 服务层测试
-│   │   ├── utils/               # 工具模块测试
-│   │   └── integration/         # 端到端集成测试
-│   ├── package.json             # 依赖与脚本
-│   ├── tsconfig.json            # TypeScript 配置
-│   └── vitest.config.ts         # 测试配置
-└── docs/                        # 文档
-    ├── wiki/                    # Code Wiki（本文件所在）
-    └── superpowers/
-        ├── specs/               # 设计文档（6 份）
-        └── plans/               # 实施计划（3 份）
+fire-app-monorepo/               # 仓库根（package.json + pnpm-workspace.yaml）
+├── packages/
+│   └── shared/                  # @fire-app/shared：数据层（db / models / services / types / utils + 测试）
+│       ├── src/                 # 源码
+│       │   ├── db/              # 数据库层：连接管理 + schema 定义
+│       │   ├── models/          # 数据模型层：7 个文件，每文件对应一张表
+│       │   ├── services/        # 业务服务层：4 个文件，事务与算法
+│       │   ├── types/           # 类型定义：纯类型导出（5 枚举 + 7 接口）
+│       │   ├── utils/           # 工具模块：金额/同步/时间
+│       │   └── index.ts         # 包入口（聚合导出）
+│       ├── tests/               # 测试套件（12 单元 + 1 集成）
+│       ├── package.json         # @fire-app/shared 依赖与脚本
+│       ├── tsconfig.json        # TypeScript 配置
+│       └── vitest.config.ts     # 测试配置
+├── apps/
+│   └── desktop/                 # @fire-app/desktop：Electron 桌面端
+│       ├── src/
+│       │   ├── main/            # Electron 主进程（db-manager + ipc/ handlers）
+│       │   ├── preload/         # preload 桥（暴露 IPC API 给渲染层）
+│       │   └── renderer/        # React 19 渲染层（pages / components / stores / data）
+│       ├── tests/               # 桌面端组件 / store 测试
+│       ├── electron.vite.config.ts
+│       ├── electron-builder.yml
+│       ├── package.json         # @fire-app/desktop 依赖与脚本
+│       ├── tsconfig.json
+│       └── vitest.config.ts
+├── docs/                        # 文档
+│   ├── wiki/                    # Code Wiki（本文件所在）
+│   └── superpowers/
+│       ├── specs/               # 设计文档
+│       └── plans/               # 实施计划
+├── scripts/                     # 环境检查 / 初始化脚本
+├── package.json                 # 根工作区（pnpm 9 + workspace 脚本）
+├── pnpm-workspace.yaml          # workspace 配置（packages/* + apps/*）
+└── tsconfig.base.json           # 共享 TS 配置基线
 ```
 
-### 5.2 `fire-app/src/` 源码目录
+> 旧的 `fire-app/` 单包目录仍保留于仓库根（历史代码，未删除），但**当前权威代码位于 `packages/shared` 与 `apps/desktop`**。Wiki 全文以 monorepo 路径为准。
+
+### 5.2 `packages/shared/src/` 源码目录
 
 | 目录 | 文件 | 职责 |
 |------|------|------|
-| `src/db/` | [connection.ts](file:///workspace/FIRE%20APP/fire-app/src/db/connection.ts)、[schema.ts](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts) | 数据库连接创建/关闭（WAL + 外键 PRAGMA）、7 张表与 9 索引的 DDL 集中定义 |
-| `src/models/` | [user.ts](file:///workspace/FIRE%20APP/fire-app/src/models/user.ts)、[account.ts](file:///workspace/FIRE%20APP/fire-app/src/models/account.ts)、[category.ts](file:///workspace/FIRE%20APP/fire-app/src/models/category.ts)、[transaction.ts](file:///workspace/FIRE%20APP/fire-app/src/models/transaction.ts)、[recurring.ts](file:///workspace/FIRE%20APP/fire-app/src/models/recurring.ts)、[scenario.ts](file:///workspace/FIRE%20APP/fire-app/src/models/scenario.ts)、[snapshot.ts](file:///workspace/FIRE%20APP/fire-app/src/models/snapshot.ts) | 数据访问层（DAL），每文件对应一张表，提供 CRUD 与简单查询，不含跨表事务 |
-| `src/services/` | [fire-calc.ts](file:///workspace/FIRE%20APP/fire-app/src/services/fire-calc.ts)、[transaction-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/transaction-service.ts)、[recurring-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/recurring-service.ts)、[snapshot-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/snapshot-service.ts) | 业务逻辑层，协调多 model 写操作，含事务边界与 FIRE 计算算法 |
-| `src/types/` | [index.ts](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts) | 纯类型导出文件，5 个枚举别名 + 7 个实体接口，无运行时代码 |
-| `src/utils/` | [money.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/money.ts)、[sync.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/sync.ts)、[time.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/time.ts) | 工具模块：金额/基点转换、LWW 同步元数据、时间戳与月份运算 |
+| `src/db/` | [connection.ts](file:///workspace/packages/shared/src/db/connection.ts)、[schema.ts](file:///workspace/packages/shared/src/db/schema.ts) | 数据库连接创建/关闭（WAL + 外键 PRAGMA）、7 张表与 9 索引的 DDL 集中定义 |
+| `src/models/` | [user.ts](file:///workspace/packages/shared/src/models/user.ts)、[account.ts](file:///workspace/packages/shared/src/models/account.ts)、[category.ts](file:///workspace/packages/shared/src/models/category.ts)、[transaction.ts](file:///workspace/packages/shared/src/models/transaction.ts)、[recurring.ts](file:///workspace/packages/shared/src/models/recurring.ts)、[scenario.ts](file:///workspace/packages/shared/src/models/scenario.ts)、[snapshot.ts](file:///workspace/packages/shared/src/models/snapshot.ts) | 数据访问层（DAL），每文件对应一张表，提供 CRUD 与简单查询，不含跨表事务 |
+| `src/services/` | [fire-calc.ts](file:///workspace/packages/shared/src/services/fire-calc.ts)、[transaction-service.ts](file:///workspace/packages/shared/src/services/transaction-service.ts)、[recurring-service.ts](file:///workspace/packages/shared/src/services/recurring-service.ts)、[snapshot-service.ts](file:///workspace/packages/shared/src/services/snapshot-service.ts) | 业务逻辑层，协调多 model 写操作，含事务边界与 FIRE 计算算法 |
+| `src/types/` | [index.ts](file:///workspace/packages/shared/src/types/index.ts) | 纯类型导出文件，5 个枚举别名 + 7 个实体接口，无运行时代码 |
+| `src/utils/` | [money.ts](file:///workspace/packages/shared/src/utils/money.ts)、[sync.ts](file:///workspace/packages/shared/src/utils/sync.ts)、[time.ts](file:///workspace/packages/shared/src/utils/time.ts) | 工具模块：金额/基点转换、LWW 同步元数据、时间戳与月份运算 |
 
-### 5.3 `fire-app/tests/` 测试目录
+### 5.3 `packages/shared/tests/` 测试目录
 
 | 目录 | 文件 | 覆盖 |
 |------|------|------|
@@ -331,7 +378,20 @@ FIRE APP/
 | `tests/utils/` | money.test.ts、sync.test.ts、time.test.ts | 金额转换、LWW 冲突、月份运算 |
 | `tests/integration/` | workflow.test.ts | 端到端：建账→记账→快照→FIRE 投影 |
 
-### 5.4 `docs/` 文档目录
+### 5.4 `apps/desktop/` 桌面端包
+
+Electron 桌面端，依赖 `@fire-app/shared`（`workspace:*`）。三层进程结构：
+
+| 目录 | 职责 |
+|------|------|
+| `src/main/` | Electron 主进程：`db-manager.ts` 持有 better-sqlite3 连接，`ipc/` 下按域分文件注册 IPC handler（user / account / category / transaction / recurring / scenario / snapshot / fire-calc / db） |
+| `src/preload/` | preload 桥：通过 `contextBridge` 向渲染层暴露 IPC 调用 API |
+| `src/renderer/src/` | React 19 渲染层：`pages/`（6 个核心页面 + Onboarding）、`components/`（accounts / transactions / dashboard / net-worth / fire-calculator / layout / base / auxiliary）、`stores/`（Zustand 状态管理）、`data/`（DataAccessPort 抽象 + ipc-data-access 实现）、`router/` |
+| `tests/` | 桌面端测试：组件测试（`.test.tsx`）+ store / constants 测试（`.test.ts`） |
+
+构建配置：`electron.vite.config.ts`（electron-vite 2）、`electron-builder.yml`（打包）、`vitest.config.ts`（jsdom 环境）。
+
+### 5.5 `docs/` 文档目录
 
 | 目录 | 内容 |
 |------|------|
@@ -385,39 +445,39 @@ flowchart TD
 
 | 模块 | 外部依赖 | 内部依赖 | 说明 |
 |------|---------|---------|------|
-| [types/index.ts](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts) | 无 | 无 | 纯 `export type` / `export interface`，编译后无运行时代码 |
-| [db/connection.ts](file:///workspace/FIRE%20APP/fire-app/src/db/connection.ts) | better-sqlite3 | 无 | 连接创建/关闭 |
-| [db/schema.ts](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts) | better-sqlite3（仅类型） | 无 | DDL 数组与 `initSchema` |
-| [utils/time.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/time.ts) | 无（用 `Date.now()`） | 无 | `nowMs` / `toYearMonth` / `addMonths` / `monthsBetween` |
-| [utils/money.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/money.ts) | 无 | 无 | `yuanToCents` / `centsToYuan` / `basisPointsToDecimal` |
+| [types/index.ts](file:///workspace/packages/shared/src/types/index.ts) | 无 | 无 | 纯 `export type` / `export interface`，编译后无运行时代码 |
+| [db/connection.ts](file:///workspace/packages/shared/src/db/connection.ts) | better-sqlite3 | 无 | 连接创建/关闭 |
+| [db/schema.ts](file:///workspace/packages/shared/src/db/schema.ts) | better-sqlite3（仅类型） | 无 | DDL 数组与 `initSchema` |
+| [utils/time.ts](file:///workspace/packages/shared/src/utils/time.ts) | 无（用 `Date.now()`） | 无 | `nowMs` / `toYearMonth` / `addMonths` / `monthsBetween` |
+| [utils/money.ts](file:///workspace/packages/shared/src/utils/money.ts) | 无 | 无 | `yuanToCents` / `centsToYuan` / `basisPointsToDecimal` |
 
 **② 中间层**
 
 | 模块 | 依赖 | 说明 |
 |------|------|------|
-| [utils/sync.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/sync.ts) | utils/time.ts（`nowMs`） | `SyncMeta` 接口与 LWW 冲突解决（`shouldRemoteWin`） |
-| [models/](file:///workspace/FIRE%20APP/fire-app/src/models/)（7 文件） | types/index.ts、utils/time.ts、better-sqlite3、uuid | 每文件对应一张表；写操作文件依赖 `nowMs`，纯查询文件（transaction.ts、snapshot.ts）仅依赖 types |
+| [utils/sync.ts](file:///workspace/packages/shared/src/utils/sync.ts) | utils/time.ts（`nowMs`） | `SyncMeta` 接口与 LWW 冲突解决（`shouldRemoteWin`） |
+| [models/](file:///workspace/packages/shared/src/models/)（7 文件） | types/index.ts、utils/time.ts、better-sqlite3、uuid | 每文件对应一张表；写操作文件依赖 `nowMs`，纯查询文件（transaction.ts、snapshot.ts）仅依赖 types |
 
 **③ 顶层**
 
 | 模块 | 依赖 | 说明 |
 |------|------|------|
-| [services/fire-calc.ts](file:///workspace/FIRE%20APP/fire-app/src/services/fire-calc.ts) | utils/money.ts、models/account.ts、types/index.ts | 纯计算引擎，仅读 accounts 表 |
-| [services/transaction-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/transaction-service.ts) | models/transaction.ts、utils/time.ts、types/index.ts、uuid | 交易事务服务 |
-| [services/recurring-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/recurring-service.ts) | models/recurring.ts、utils/time.ts、types/index.ts、**services/transaction-service.ts** | 补单引擎，调用 transaction-service 生成交易 |
-| [services/snapshot-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/snapshot-service.ts) | models/snapshot.ts、utils/time.ts、types/index.ts、uuid | 月度快照生成 |
+| [services/fire-calc.ts](file:///workspace/packages/shared/src/services/fire-calc.ts) | utils/money.ts、models/account.ts、types/index.ts | 纯计算引擎，仅读 accounts 表 |
+| [services/transaction-service.ts](file:///workspace/packages/shared/src/services/transaction-service.ts) | models/transaction.ts、utils/time.ts、types/index.ts、uuid | 交易事务服务 |
+| [services/recurring-service.ts](file:///workspace/packages/shared/src/services/recurring-service.ts) | models/recurring.ts、utils/time.ts、types/index.ts、**services/transaction-service.ts** | 补单引擎，调用 transaction-service 生成交易 |
+| [services/snapshot-service.ts](file:///workspace/packages/shared/src/services/snapshot-service.ts) | models/snapshot.ts、utils/time.ts、types/index.ts、uuid | 月度快照生成 |
 
 ### 6.3 依赖图关键特征
 
 1. **无循环依赖**：所有 import 形成有向无环图（DAG）。`services → models → utils/types`，不存在反向边。
 
-2. **types/ 是跨层共享契约**：[types/index.ts](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts) 被 models/ 与 services/ 共同依赖，提供 5 个枚举别名与 7 个实体接口，是层间类型一致的保证。
+2. **types/ 是跨层共享契约**：[types/index.ts](file:///workspace/packages/shared/src/types/index.ts) 被 models/ 与 services/ 共同依赖，提供 5 个枚举别名与 7 个实体接口，是层间类型一致的保证。
 
 3. **db/ 是运行时基础而非 import 依赖**：db/ 模块（connection.ts、schema.ts）提供连接创建与 schema 初始化，但**不被 models/ 或 services/ 直接 import**——models/services 直接从 `better-sqlite3` 导入 `Database` 类型，db/ 由应用入口与测试在启动时调用。因此 db/ 在 import 图中是叶子，在运行时是基础。
 
-4. **services 内部有一个例外调用**：[recurring-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/recurring-service.ts) 调用 [transaction-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/transaction-service.ts) 的 `createTransaction` 来生成经常性交易。这是 services 层内部唯一的横向依赖，使补单引擎间接享受事务原子性保证。
+4. **services 内部有一个例外调用**：[recurring-service.ts](file:///workspace/packages/shared/src/services/recurring-service.ts) 调用 [transaction-service.ts](file:///workspace/packages/shared/src/services/transaction-service.ts) 的 `createTransaction` 来生成经常性交易。这是 services 层内部唯一的横向依赖，使补单引擎间接享受事务原子性保证。
 
-5. **utils/ 内部有一个依赖**：[utils/sync.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/sync.ts) 依赖 [utils/time.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/time.ts) 的 `nowMs`，用于生成同步元数据时间戳。
+5. **utils/ 内部有一个依赖**：[utils/sync.ts](file:///workspace/packages/shared/src/utils/sync.ts) 依赖 [utils/time.ts](file:///workspace/packages/shared/src/utils/time.ts) 的 `nowMs`，用于生成同步元数据时间戳。
 
 6. **分层职责清晰**：models 层只做单表 CRUD（无跨表事务），services 层协调多 model 写操作并承载算法（FIRE 计算、补单、快照聚合），事务边界统一在 services 层用 `db.transaction(() => {...})` 包裹。
 

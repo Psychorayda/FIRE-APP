@@ -1,7 +1,7 @@
 # 07-tests.md — 测试套件
 
-> **最后更新**: 2026-07-15
-> **对应代码**: `fire-app/tests/`
+> **最后更新**: 2026-07-29
+> **对应代码**: `packages/shared/tests/`
 > **导航**: [← 返回主页](CODE_WIKI.md) | [上一节](06-utils.md) | [下一节](08-design-index.md)
 
 ---
@@ -12,7 +12,7 @@ FIRE APP 的测试套件基于 **vitest 2.0**，覆盖数据层、模型层、�
 
 ### 1.1 配置文件
 
-源码：[vitest.config.ts](file:///workspace/FIRE%20APP/fire-app/vitest.config.ts)
+源码：[vitest.config.ts](file:///workspace/packages/shared/vitest.config.ts)
 
 ```typescript
 import { defineConfig } from 'vitest/config';
@@ -44,17 +44,21 @@ export default defineConfig({
 
 ### 1.3 运行命令
 
+monorepo 下通过根 `package.json` 暴露的 pnpm 脚本运行测试：
+
 | 命令 | 用途 |
 |------|------|
-| `npm test` | 单次运行全部测试 |
-| `npm run test:watch` | 监视模式，文件变更时自动重跑 |
+| `pnpm test:shared` | 单次运行 `packages/shared` 数据层全部测试（`vitest run`） |
+| `pnpm test:desktop` | 单次运行 `apps/desktop` 桌面端测试 |
+| `pnpm test:all` | 依次运行 shared 与 desktop 全部测试 |
+| `pnpm --filter @fire-app/shared test:watch` | 监听模式，文件变更时自动重跑 |
 
 ---
 
 ## 2. 测试目录结构
 
 ```
-fire-app/tests/
+packages/shared/tests/
 ├── db/                  # 数据库层测试（2 个文件）
 │   ├── connection.test.ts
 │   └── schema.test.ts
@@ -121,7 +125,7 @@ beforeEach(() => {
 ```
 
 内存库的特性：
-- 不支持 WAL 模式，但 `createDatabase` 内部静默忽略（不抛错），见 [connection.test.ts:28-31](file:///workspace/FIRE%20APP/fire-app/tests/db/connection.test.ts#L28-L31)
+- 不支持 WAL 模式，但 `createDatabase` 内部静默忽略（不抛错），见 [connection.test.ts:28-31](file:///workspace/packages/shared/tests/db/connection.test.ts#L28-L31)
 - 每个测试用例独立创建新实例，无状态泄漏
 
 ### 4.2 beforeEach / afterEach 模式
@@ -177,7 +181,7 @@ afterEach(() => {
 
 ### 4.5 集成测试
 
-[workflow.test.ts](file:///workspace/FIRE%20APP/fire-app/tests/integration/workflow.test.ts) 是唯一的端到端集成测试，跨 db / models / services / utils 全栈验证完整用户流程（详见第 5 节）。
+[workflow.test.ts](file:///workspace/packages/shared/tests/integration/workflow.test.ts) 是唯一的端到端集成测试，跨 db / models / services / utils 全栈验证完整用户流程（详见第 5 节）。
 
 ---
 
@@ -185,11 +189,11 @@ afterEach(() => {
 
 ### 5.1 集成测试用例
 
-源码：[workflow.test.ts](file:///workspace/FIRE%20APP/fire-app/tests/integration/workflow.test.ts)
+源码：[workflow.test.ts](file:///workspace/packages/shared/tests/integration/workflow.test.ts)
 
 集成测试包含 3 个端到端用例，覆盖 FIRE APP 的核心业务链路：
 
-#### 用例 1：完整工作流（[workflow.test.ts:29-108](file:///workspace/FIRE%20APP/fire-app/tests/integration/workflow.test.ts#L29-L108)）
+#### 用例 1：完整工作流（[workflow.test.ts:29-108](file:///workspace/packages/shared/tests/integration/workflow.test.ts#L29-L108)）
 
 **标题**：`完整工作流: 建账 → 记账 → 快照 → FIRE计算`
 
@@ -205,7 +209,7 @@ afterEach(() => {
 8. **创建 FIRE 场景**：30 岁 → 50 岁退休，月储蓄 500000 分，年支出 6000000 分，提款率 350 基点
 9. **运行投影**：验证 fire_number = 171428571（= 6000000 × 10000 / 350 向下取整）、adjusted_fire_number < fire_number、月度投影 600 个点（240 积累 + 360 退休）
 
-#### 用例 2：经常性交易工作流（[workflow.test.ts:110-137](file:///workspace/FIRE%20APP/fire-app/tests/integration/workflow.test.ts#L110-L137)）
+#### 用例 2：经常性交易工作流（[workflow.test.ts:110-137](file:///workspace/packages/shared/tests/integration/workflow.test.ts#L110-L137)）
 
 **标题**：`经常性交易工作流: 创建模板 → 补生成 → 余额更新`
 
@@ -215,7 +219,7 @@ afterEach(() => {
 3. 调用 `processRecurringTransactions` 补生成逾期交易（≥3 笔）
 4. 验证余额 = 1000000 + 1000000 × 生成笔数
 
-#### 用例 3：快照历史工作流（[workflow.test.ts:139-160](file:///workspace/FIRE%20APP/fire-app/tests/integration/workflow.test.ts#L139-L160)）
+#### 用例 3：快照历史工作流（[workflow.test.ts:139-160](file:///workspace/packages/shared/tests/integration/workflow.test.ts#L139-L160)）
 
 **标题**：`快照历史工作流: 多月快照按日期降序`
 
@@ -229,15 +233,15 @@ afterEach(() => {
 
 | 测试文件 | 关键覆盖点 | 源码位置 |
 |----------|-----------|----------|
-| [connection.test.ts](file:///workspace/FIRE%20APP/fire-app/tests/db/connection.test.ts) | 内存库创建、WAL 回退、closeDatabase | [connection.ts](file:///workspace/FIRE%20APP/fire-app/src/db/connection.ts) |
-| [schema.test.ts](file:///workspace/FIRE%20APP/fire-app/tests/db/schema.test.ts) | 7 表 + 4 索引 + UNIQUE 约束 | [schema.ts](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts) |
-| [account.test.ts](file:///workspace/FIRE%20APP/fire-app/tests/models/account.test.ts) | softDeleteAccount 抛错（有关联交易）、getInvestableBalance 只汇总 liquid+invested | [account.ts:103-119](file:///workspace/FIRE%20APP/fire-app/src/models/account.ts#L103-L119) |
-| [category.test.ts](file:///workspace/FIRE%20APP/fire-app/tests/models/category.test.ts) | seedCategories 生成 18 个（11 支出 + 7 收入）、5 个 linked_fire_concept | [category.ts:93-118](file:///workspace/FIRE%20APP/fire-app/src/models/category.ts#L93-L118) |
-| [user.test.ts](file:///workspace/FIRE%20APP/fire-app/tests/models/user.test.ts) | 中国市场默认 350 基点、非中国市场 400 基点 | [user.ts:28](file:///workspace/FIRE%20APP/fire-app/src/models/user.ts#L28) |
-| [fire-calc.test.ts](file:///workspace/FIRE%20APP/fire-app/tests/services/fire-calc.test.ts) | 4% 规则（25 倍）、3.5% 规则（~28.57 倍）、auto_sync_assets 两条路径 | [fire-calc.ts:18](file:///workspace/FIRE%20APP/fire-app/src/services/fire-calc.ts#L18) |
-| [recurring-service.test.ts](file:///workspace/FIRE%20APP/fire-app/tests/services/recurring-service.test.ts) | while 循环补单、end_date 停用、暂停模板跳过 | [recurring-service.ts:17](file:///workspace/FIRE%20APP/fire-app/src/services/recurring-service.ts#L17) |
-| [snapshot-service.test.ts](file:///workspace/FIRE%20APP/fire-app/tests/services/snapshot-service.test.ts) | 同月幂等返回 null、net_worth = 4 类之和 | [snapshot-service.ts:21](file:///workspace/FIRE%20APP/fire-app/src/services/snapshot-service.ts#L21) |
-| [transaction-service.test.ts](file:///workspace/FIRE%20APP/fire-app/tests/services/transaction-service.test.ts) | 转账双账户联动、转账规则校验（无 to_account_id / 转给自己）、edit 反向+正向调整 | [transaction-service.ts:43](file:///workspace/FIRE%20APP/fire-app/src/services/transaction-service.ts#L43) |
-| [money.test.ts](file:///workspace/FIRE%20APP/fire-app/tests/utils/money.test.ts) | 1.005 元 → 101 分（两阶段取整规避 IEEE 754 误差） | [money.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/money.ts) |
-| [sync.test.ts](file:///workspace/FIRE%20APP/fire-app/tests/utils/sync.test.ts) | LWW 时间相同 → 远程胜（避免同步死锁） | [sync.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/sync.ts) |
-| [time.test.ts](file:///workspace/FIRE%20APP/fire-app/tests/utils/time.test.ts) | addMonths 跨年、monthsBetween 跨年 | [time.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/time.ts) |
+| [connection.test.ts](file:///workspace/packages/shared/tests/db/connection.test.ts) | 内存库创建、WAL 回退、closeDatabase | [connection.ts](file:///workspace/packages/shared/src/db/connection.ts) |
+| [schema.test.ts](file:///workspace/packages/shared/tests/db/schema.test.ts) | 7 表 + 4 索引 + UNIQUE 约束 | [schema.ts](file:///workspace/packages/shared/src/db/schema.ts) |
+| [account.test.ts](file:///workspace/packages/shared/tests/models/account.test.ts) | softDeleteAccount 抛错（有关联交易）、getInvestableBalance 只汇总 liquid+invested | [account.ts:103-119](file:///workspace/packages/shared/src/models/account.ts#L103-L119) |
+| [category.test.ts](file:///workspace/packages/shared/tests/models/category.test.ts) | seedCategories 生成 18 个（11 支出 + 7 收入）、5 个 linked_fire_concept | [category.ts:93-118](file:///workspace/packages/shared/src/models/category.ts#L93-L118) |
+| [user.test.ts](file:///workspace/packages/shared/tests/models/user.test.ts) | 中国市场默认 350 基点、非中国市场 400 基点 | [user.ts:28](file:///workspace/packages/shared/src/models/user.ts#L28) |
+| [fire-calc.test.ts](file:///workspace/packages/shared/tests/services/fire-calc.test.ts) | 4% 规则（25 倍）、3.5% 规则（~28.57 倍）、auto_sync_assets 两条路径 | [fire-calc.ts:18](file:///workspace/packages/shared/src/services/fire-calc.ts#L18) |
+| [recurring-service.test.ts](file:///workspace/packages/shared/tests/services/recurring-service.test.ts) | while 循环补单、end_date 停用、暂停模板跳过 | [recurring-service.ts:17](file:///workspace/packages/shared/src/services/recurring-service.ts#L17) |
+| [snapshot-service.test.ts](file:///workspace/packages/shared/tests/services/snapshot-service.test.ts) | 同月幂等返回 null、net_worth = 4 类之和 | [snapshot-service.ts:21](file:///workspace/packages/shared/src/services/snapshot-service.ts#L21) |
+| [transaction-service.test.ts](file:///workspace/packages/shared/tests/services/transaction-service.test.ts) | 转账双账户联动、转账规则校验（无 to_account_id / 转给自己）、edit 反向+正向调整 | [transaction-service.ts:43](file:///workspace/packages/shared/src/services/transaction-service.ts#L43) |
+| [money.test.ts](file:///workspace/packages/shared/tests/utils/money.test.ts) | 1.005 元 → 101 分（两阶段取整规避 IEEE 754 误差） | [money.ts](file:///workspace/packages/shared/src/utils/money.ts) |
+| [sync.test.ts](file:///workspace/packages/shared/tests/utils/sync.test.ts) | LWW 时间相同 → 远程胜（避免同步死锁） | [sync.ts](file:///workspace/packages/shared/src/utils/sync.ts) |
+| [time.test.ts](file:///workspace/packages/shared/tests/utils/time.test.ts) | addMonths 跨年、monthsBetween 跨年 | [time.ts](file:///workspace/packages/shared/src/utils/time.ts) |

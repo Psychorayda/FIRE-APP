@@ -34,4 +34,9 @@ describe('database connection', () => {
     closeDatabase(db);
     expect(db.open).toBe(false);
   });
+
+  it('createDatabase: 空路径抛错', () => {
+    expect(() => createDatabase('')).toThrow('数据库路径不能为空');
+    expect(() => createDatabase(undefined as unknown as string)).toThrow('数据库路径不能为空');
+  });
 });

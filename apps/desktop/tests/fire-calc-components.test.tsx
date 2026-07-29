@@ -446,4 +446,93 @@ describe('FireCalculatorPage 集成', () => {
 
     expect(await screen.findByText('数据加载失败，请重试')).toBeInTheDocument();
   });
+
+  it('校验失败→阻止保存→修正后恢复保存（spec 8.4 场景 3）', async () => {
+    const scenarios = [makeScenario({ id: 's1', name: '标准' })];
+    (window.dataAccess.scenario.list as any).mockResolvedValue(scenarios);
+    useAppStore.setState({ currentUser: makeUser({}) as any });
+
+    render(<FireCalculatorPage />);
+    await screen.findByText('场景详情');
+
+    // 进入编辑模式
+    fireEvent.click(screen.getByText('编辑'));
+
+    // 输入非法年龄 → 保存被阻止
+    const ageInput = screen.getByLabelText('当前年龄') as HTMLInputElement;
+    fireEvent.change(ageInput, { target: { value: '15' } });
+    fireEvent.click(screen.getByText('保存'));
+    expect(screen.getByText('当前年龄需在 18-80 之间')).toBeInTheDocument();
+    expect(window.dataAccess.scenario.update).not.toHaveBeenCalled();
+
+    // 修正年龄 → 保存成功
+    fireEvent.change(ageInput, { target: { value: '35' } });
+    fireEvent.click(screen.getByText('保存'));
+    expect(window.dataAccess.scenario.update).toHaveBeenCalledWith('s1', expect.objectContaining({ current_age: 35 }));
+    // 回到浏览模式
+    expect(screen.getByText('编辑')).toBeInTheDocument();
+  });
+
+  it('保存触发 update + runProjection + 结果更新（spec 8.4 场景 1）', async () => {
+    const scenarios = [makeScenario({ id: 's1', name: '标准' })];
+    (window.dataAccess.scenario.list as any).mockResolvedValue(scenarios);
+    (window.dataAccess.fireCalc.runProjection as any).mockResolvedValue(
+      makeProjection({ progress: 50, fire_number: 1000000000 })
+    );
+    useAppStore.setState({ currentUser: makeUser({}) as any });
+
+    render(<FireCalculatorPage />);
+    await screen.findByText('场景详情');
+    vi.clearAllMocks();
+
+    // 重新 mock update 后 list 返回更新后的场景
+    (window.dataAccess.scenario.list as any).mockResolvedValue(
+      [makeScenario({ id: 's1', name: '标准', current_age: 35 })]
+    );
+    (window.dataAccess.fireCalc.runProjection as any).mockResolvedValue(
+      makeProjection({ progress: 75, fire_number: 1200000000 })
+    );
+
+    // 编辑并保存
+    fireEvent.click(screen.getByText('编辑'));
+    const savingsInput = screen.getByLabelText('每月储蓄') as HTMLInputElement;
+    fireEvent.change(savingsInput, { target: { value: '5000' } });
+    fireEvent.click(screen.getByText('保存'));
+
+    // 验证 update 被调用
+    await screen.findByText('场景详情');
+    expect(window.dataAccess.scenario.update).toHaveBeenCalledWith(
+      's1', expect.objectContaining({ monthly_savings: 500000 })
+    );
+    // 验证 runProjection 被调用
+    expect(window.dataAccess.fireCalc.runProjection).toHaveBeenCalled();
+  });
+
+  it('auto_sync 开启→getInvestableBalance 被调用（FC-11 页面级）', async () => {
+    const scenarios = [makeScenario({ id: 's1', name: '标准', auto_sync_assets: 0 })];
+    (window.dataAccess.scenario.list as any).mockResolvedValue(scenarios);
+    (window.dataAccess.account.investableBalance as any).mockResolvedValue(5000000);
+    useAppStore.setState({ currentUser: makeUser({}) as any });
+
+    render(<FireCalculatorPage />);
+    await screen.findByText('场景详情');
+    // auto_sync=0 时不应调用 investableBalance
+    expect(window.dataAccess.account.investableBalance).not.toHaveBeenCalled();
+
+    // 切换 auto_sync 开启并保存
+    fireEvent.click(screen.getByText('编辑'));
+    const toggle = screen.getByLabelText('自动同步资产') as HTMLInputElement;
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByText('保存'));
+
+    // update 后 list 返回 auto_sync=1 的场景
+    (window.dataAccess.scenario.list as any).mockResolvedValue(
+      [makeScenario({ id: 's1', name: '标准', auto_sync_assets: 1 })]
+    );
+
+    // 等 useEffect 触发 getInvestableBalance
+    await screen.findByText('场景详情');
+    await new Promise((r) => setTimeout(r, 50));
+    expect(window.dataAccess.account.investableBalance).toHaveBeenCalledWith('user-1');
+  });
 });

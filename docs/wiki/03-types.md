@@ -1,14 +1,14 @@
 # 03-types.md — 类型定义
 
-> **最后更新**: 2026-07-15
-> **对应代码**: `fire-app/src/types/`
+> **最后更新**: 2026-07-29
+> **对应代码**: `packages/shared/src/types/`
 > **导航**: [← 返回主页](CODE_WIKI.md) | [上一节](02-database.md) | [下一节](04-models.md)
 
 ---
 
 ## 1. 概述
 
-源码：[index.ts](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts)
+源码：[index.ts](file:///workspace/packages/shared/src/types/index.ts)
 
 `types/index.ts` 是一个**纯类型导出文件**——仅含 `export type` 与 `export interface` 声明，无任何运行时代码（无函数、无常量、无副作用）。编译后输出的 `.js` 文件为空（仅有 sourcemap 引用），因此在运行时此模块**不增加 bundle 体积**。
 
@@ -26,7 +26,7 @@
 
 ### 1.3 文件结构
 
-源码 141 行，分两个区块（[index.ts:3-17](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts#L3-L17) 为枚举区块，[index.ts:19-141](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts#L19-L141) 为接口区块）。所有类型均用 `export` 导出，供外部模块按名引用。
+源码 141 行，分两个区块（[index.ts:3-17](file:///workspace/packages/shared/src/types/index.ts#L3-L17) 为枚举区块，[index.ts:19-141](file:///workspace/packages/shared/src/types/index.ts#L19-L141) 为接口区块）。所有类型均用 `export` 导出，供外部模块按名引用。
 
 ---
 
@@ -36,7 +36,7 @@
 
 ### 2.1 `AssetClass`
 
-源码：[index.ts:5](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts#L5)
+源码：[index.ts:5](file:///workspace/packages/shared/src/types/index.ts#L5)
 
 ```typescript
 export type AssetClass = 'liquid' | 'invested' | 'use_asset' | 'liability';
@@ -47,12 +47,12 @@ export type AssetClass = 'liquid' | 'invested' | 'use_asset' | 'liability';
   - `invested` — 投资资产（基金、股票、退休账户等）
   - `use_asset` — 使用资产（自住房产、车辆等）
   - `liability` — 负债（信用卡、贷款、房贷等，余额为负数）
-- **对应 CHECK 约束**：`accounts.asset_class IN ('liquid', 'invested', 'use_asset', 'liability')`（[schema.ts:35](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L35)）
+- **对应 CHECK 约束**：`accounts.asset_class IN ('liquid', 'invested', 'use_asset', 'liability')`（[schema.ts:35](file:///workspace/packages/shared/src/db/schema.ts#L35)）
 - **使用场景**：`accounts.asset_class` 字段；驱动 `getInvestableBalance`（liquid + invested）与净资产快照的 4 类分组聚合（详见 [05-services.md](05-services.md) 的快照服务小节）
 
 ### 2.2 `AccountType`
 
-源码：[index.ts:7-11](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts#L7-L11)
+源码：[index.ts:7-11](file:///workspace/packages/shared/src/types/index.ts#L7-L11)
 
 ```typescript
 export type AccountType =
@@ -67,13 +67,13 @@ export type AccountType =
   - 投资类：`investment`（投资账户）、`retirement`（退休账户）、`fund`（基金）
   - 实物类：`real_estate`（房产）、`vehicle`（车辆）
   - 负债类：`credit_card`（信用卡）、`loan`（贷款）、`mortgage`（房贷）
-- **对应 CHECK 约束**：`accounts.account_type IN ('checking','savings','cash','investment','retirement','fund','real_estate','vehicle','credit_card','loan','mortgage')`（[schema.ts:37-42](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L37-L42)）
+- **对应 CHECK 约束**：`accounts.account_type IN ('checking','savings','cash','investment','retirement','fund','real_estate','vehicle','credit_card','loan','mortgage')`（[schema.ts:37-42](file:///workspace/packages/shared/src/db/schema.ts#L37-L42)）
 - **使用场景**：`accounts.account_type` 字段
 - **已知问题**：设计文档 `2026-07-12-fire-app-user-data-model-design.md` 第 925 行（决策记录 #17）写"10 种完整枚举"，正确值为 **11 种**。Wiki 以代码为权威，描述为 11（详见 [08-design-index.md](08-design-index.md) 的已知问题清单）
 
 ### 2.3 `TransactionType`
 
-源码：[index.ts:13](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts#L13)
+源码：[index.ts:13](file:///workspace/packages/shared/src/types/index.ts#L13)
 
 ```typescript
 export type TransactionType = 'income' | 'expense' | 'transfer' | 'initial_balance';
@@ -85,8 +85,8 @@ export type TransactionType = 'income' | 'expense' | 'transfer' | 'initial_balan
   - `transfer` — 转账
   - `initial_balance` — 初始余额（仅用于建账时设置账户起始余额）
 - **对应 CHECK 约束**：
-  - `transactions.transaction_type IN ('income','expense','transfer','initial_balance')`（[schema.ts:75](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L75)）— 4 值
-  - `recurring_transactions.transaction_type IN ('income','expense','transfer')`（[schema.ts:97](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L97)）— 3 值，**不包含** `initial_balance`
+  - `transactions.transaction_type IN ('income','expense','transfer','initial_balance')`（[schema.ts:75](file:///workspace/packages/shared/src/db/schema.ts#L75)）— 4 值
+  - `recurring_transactions.transaction_type IN ('income','expense','transfer')`（[schema.ts:97](file:///workspace/packages/shared/src/db/schema.ts#L97)）— 3 值，**不包含** `initial_balance`
 - **使用场景**：
   - `transactions.transaction_type` 字段（4 值全部可用）
   - `recurring_transactions.transaction_type` 字段（仅前 3 值，初始余额不应作为经常性模板）
@@ -94,7 +94,7 @@ export type TransactionType = 'income' | 'expense' | 'transfer' | 'initial_balan
 
 ### 2.4 `CategoryType`
 
-源码：[index.ts:15](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts#L15)
+源码：[index.ts:15](file:///workspace/packages/shared/src/types/index.ts#L15)
 
 ```typescript
 export type CategoryType = 'income' | 'expense';
@@ -103,12 +103,12 @@ export type CategoryType = 'income' | 'expense';
 - **值列表**：2 个
   - `income` — 收入分类
   - `expense` — 支出分类
-- **对应 CHECK 约束**：`categories.type IN ('income', 'expense')`（[schema.ts:59](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L59)）
+- **对应 CHECK 约束**：`categories.type IN ('income', 'expense')`（[schema.ts:59](file:///workspace/packages/shared/src/db/schema.ts#L59)）
 - **使用场景**：`categories.type` 字段；`getCategories(db, userId, type?)` 函数支持按此类型过滤分类列表（详见 [04-models.md](04-models.md) 的 category 小节）
 
 ### 2.5 `Frequency`
 
-源码：[index.ts:17](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts#L17)
+源码：[index.ts:17](file:///workspace/packages/shared/src/types/index.ts#L17)
 
 ```typescript
 export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -119,7 +119,7 @@ export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
   - `weekly` — 每周
   - `monthly` — 每月
   - `yearly` — 每年
-- **对应 CHECK 约束**：`recurring_transactions.frequency IN ('daily','weekly','monthly','yearly')`（[schema.ts:99](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L99)）
+- **对应 CHECK 约束**：`recurring_transactions.frequency IN ('daily','weekly','monthly','yearly')`（[schema.ts:99](file:///workspace/packages/shared/src/db/schema.ts#L99)）
 - **使用场景**：`recurring_transactions.frequency` 字段；与 `interval` 字段配合表达"每 N 个单位"模式（如 `frequency='monthly'` + `interval=3` 表示每季度）。`advanceDueDate` 函数按此频率推算下一个到期日（详见 [05-services.md](05-services.md) 的 recurring-service 小节）
 
 ---
@@ -130,7 +130,7 @@ export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 ### 3.1 `User`
 
-源码：[index.ts:21-34](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts#L21-L34)
+源码：[index.ts:21-34](file:///workspace/packages/shared/src/types/index.ts#L21-L34)
 
 对应表：`users`（12 字段，见 [02-database.md 3.1](02-database.md#31-users)）
 
@@ -153,7 +153,7 @@ export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 ### 3.2 `Account`
 
-源码：[index.ts:36-49](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts#L36-L49)
+源码：[index.ts:36-49](file:///workspace/packages/shared/src/types/index.ts#L36-L49)
 
 对应表：`accounts`（12 字段，见 [02-database.md 3.2](02-database.md#32-accounts)）
 
@@ -176,7 +176,7 @@ export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 ### 3.3 `Transaction`
 
-源码：[index.ts:51-65](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts#L51-L65)
+源码：[index.ts:51-65](file:///workspace/packages/shared/src/types/index.ts#L51-L65)
 
 对应表：`transactions`（13 字段，见 [02-database.md 3.5](02-database.md#35-transactions)）
 
@@ -200,7 +200,7 @@ export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 ### 3.4 `Category`
 
-源码：[index.ts:67-81](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts#L67-L81)
+源码：[index.ts:67-81](file:///workspace/packages/shared/src/types/index.ts#L67-L81)
 
 对应表：`categories`（13 字段，见 [02-database.md 3.3](02-database.md#33-categories)）
 
@@ -224,7 +224,7 @@ export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 ### 3.5 `RecurringTransaction`
 
-源码：[index.ts:83-103](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts#L83-L103)
+源码：[index.ts:83-103](file:///workspace/packages/shared/src/types/index.ts#L83-L103)
 
 对应表：`recurring_transactions`（19 字段，见 [02-database.md 3.4](02-database.md#34-recurring_transactions)）
 
@@ -252,11 +252,11 @@ export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 **字段数**：19
 
-> 注：实施计划中早期版本曾写"17 字段"，实际源码（[index.ts:83-103](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts#L83-L103)）为 **19 字段**，本 Wiki 以代码为权威描述为 19。
+> 注：实施计划中早期版本曾写"17 字段"，实际源码（[index.ts:83-103](file:///workspace/packages/shared/src/types/index.ts#L83-L103)）为 **19 字段**，本 Wiki 以代码为权威描述为 19。
 
 ### 3.6 `NetWorthSnapshot`
 
-源码：[index.ts:105-118](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts#L105-L118)
+源码：[index.ts:105-118](file:///workspace/packages/shared/src/types/index.ts#L105-L118)
 
 对应表：`net_worth_snapshots`（12 字段，见 [02-database.md 3.6](02-database.md#36-net_worth_snapshots)）
 
@@ -277,11 +277,11 @@ export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 **字段数**：12
 
-**表级约束**：`UNIQUE(user_id, snapshot_year_month)`（[schema.ts:127](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L127)）保证每月每用户仅一条快照，是 `generateMonthlySnapshot` 幂等性的数据库层保障。
+**表级约束**：`UNIQUE(user_id, snapshot_year_month)`（[schema.ts:127](file:///workspace/packages/shared/src/db/schema.ts#L127)）保证每月每用户仅一条快照，是 `generateMonthlySnapshot` 幂等性的数据库层保障。
 
 ### 3.7 `FireScenario`
 
-源码：[index.ts:120-141](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts#L120-L141)
+源码：[index.ts:120-141](file:///workspace/packages/shared/src/types/index.ts#L120-L141)
 
 对应表：`fire_scenarios`（20 字段，见 [02-database.md 3.7](02-database.md#37-fire_scenarios)）
 

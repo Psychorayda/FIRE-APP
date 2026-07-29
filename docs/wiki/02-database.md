@@ -1,37 +1,38 @@
 # 02-database.md — 数据库层
 
-> **最后更新**: 2026-07-15
-> **对应代码**: `fire-app/src/db/`
+> **最后更新**: 2026-07-29
+> **对应代码**: `packages/shared/src/db/`
 > **导航**: [← 返回主页](CODE_WIKI.md) | [上一节](01-overview.md) | [下一节](03-types.md)
 
 ---
 
 ## 1. 连接管理
 
-源码：[connection.ts](file:///workspace/FIRE%20APP/fire-app/src/db/connection.ts)
+源码：[connection.ts](file:///workspace/packages/shared/src/db/connection.ts)
 
 `connection.ts` 是数据库层的入口，负责创建与关闭 better-sqlite3 连接，并设置两个关键 PRAGMA。
 
 ### 1.1 `createDatabase(path): DatabaseType`
 
-源码：[connection.ts:9](file:///workspace/FIRE%20APP/fire-app/src/db/connection.ts#L9)
+源码：[connection.ts:10](file:///workspace/packages/shared/src/db/connection.ts#L10)
 
 ```typescript
-export function createDatabase(path: string = 'data/fire-app.db'): DatabaseType
+export function createDatabase(path: string): DatabaseType
 ```
 
 **参数**：
-- `path`：数据库文件路径，默认 `data/fire-app.db`（生产/开发用）
+- `path`：数据库文件路径（**必填**，空值抛错以避免误用相对默认值导致数据写到非预期位置）
+- `db-manager.ts` 始终传入固定绝对路径（`%APPDATA%/fire-app/fire-app.db`）
 - 传入 `':memory:'` 创建内存数据库（测试用，无文件 I/O）
 
 **两个 PRAGMA**：
 
 | PRAGMA | 位置 | 作用 |
 |--------|------|------|
-| `foreign_keys = ON` | [connection.ts:13](file:///workspace/FIRE%20APP/fire-app/src/db/connection.ts#L13) | 强制外键约束（better-sqlite3 默认关闭，必须显式开启） |
-| `journal_mode = WAL` | [connection.ts:17](file:///workspace/FIRE%20APP/fire-app/src/db/connection.ts#L17) | Write-Ahead Logging，提升并发读写性能 |
+| `foreign_keys = ON` | [connection.ts:13](file:///workspace/packages/shared/src/db/connection.ts#L13) | 强制外键约束（better-sqlite3 默认关闭，必须显式开启） |
+| `journal_mode = WAL` | [connection.ts:17](file:///workspace/packages/shared/src/db/connection.ts#L17) | Write-Ahead Logging，提升并发读写性能 |
 
-**WAL 模式策略**（[connection.ts:16-18](file:///workspace/FIRE%20APP/fire-app/src/db/connection.ts#L16-L18)）：
+**WAL 模式策略**（[connection.ts:16-18](file:///workspace/packages/shared/src/db/connection.ts#L16-L18)）：
 
 ```typescript
 if (path !== ':memory:') {
@@ -43,25 +44,25 @@ if (path !== ':memory:') {
 
 ### 1.2 `closeDatabase(db): void`
 
-源码：[connection.ts:26](file:///workspace/FIRE%20APP/fire-app/src/db/connection.ts#L26)
+源码：[connection.ts:26](file:///workspace/packages/shared/src/db/connection.ts#L26)
 
 ```typescript
 export function closeDatabase(db: DatabaseType): void
 ```
 
-**实现**（[connection.ts:27-29](file:///workspace/FIRE%20APP/fire-app/src/db/connection.ts#L27-L29)）：先检查 `db.open` 状态，再调用 `db.close()`。避免重复关闭已关闭的连接抛错，是测试 `afterEach` 钩子安全调用的保障。
+**实现**（[connection.ts:27-29](file:///workspace/packages/shared/src/db/connection.ts#L27-L29)）：先检查 `db.open` 状态，再调用 `db.close()`。避免重复关闭已关闭的连接抛错，是测试 `afterEach` 钩子安全调用的保障。
 
 ---
 
 ## 2. Schema 初始化
 
-源码：[schema.ts](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts)
+源码：[schema.ts](file:///workspace/packages/shared/src/db/schema.ts)
 
 `schema.ts` 集中定义全部 7 张表与 9 个索引的 DDL，并通过 `initSchema` 一次性执行。
 
 ### 2.1 `TABLE_NAMES` 常量
 
-源码：[schema.ts:4-12](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L4-L12)
+源码：[schema.ts:4-12](file:///workspace/packages/shared/src/db/schema.ts#L4-L12)
 
 ```typescript
 export const TABLE_NAMES = [
@@ -79,7 +80,7 @@ export const TABLE_NAMES = [
 
 ### 2.2 `DDL_STATEMENTS` 数组
 
-源码：[schema.ts:14-164](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L14-L164)
+源码：[schema.ts:14-164](file:///workspace/packages/shared/src/db/schema.ts#L14-L164)
 
 按顺序包含 16 条 DDL：
 - 7 个 `CREATE TABLE IF NOT EXISTS`（第 16-152 行）
@@ -89,7 +90,7 @@ export const TABLE_NAMES = [
 
 ### 2.3 `initSchema(db): void`
 
-源码：[schema.ts:169](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L169)
+源码：[schema.ts:169](file:///workspace/packages/shared/src/db/schema.ts#L169)
 
 ```typescript
 export function initSchema(db: DatabaseType): void {
@@ -103,7 +104,7 @@ export function initSchema(db: DatabaseType): void {
 
 ### 2.4 前向引用说明
 
-[schema.ts:70-71](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L70-L71) 注释指出：`transactions` 表（第 4 项）通过外键引用 `recurring_transactions` 表（第 5 项），但后者在 DDL 数组中后定义。这是合法的，因为 SQLite 仅在 `foreign_keys = ON` 时检查外键完整性，而表创建时不会校验被引用表是否存在。因此 DDL 数组顺序不影响 schema 初始化。
+[schema.ts:70-71](file:///workspace/packages/shared/src/db/schema.ts#L70-L71) 注释指出：`transactions` 表（第 4 项）通过外键引用 `recurring_transactions` 表（第 5 项），但后者在 DDL 数组中后定义。这是合法的，因为 SQLite 仅在 `foreign_keys = ON` 时检查外键完整性，而表创建时不会校验被引用表是否存在。因此 DDL 数组顺序不影响 schema 初始化。
 
 ---
 
@@ -138,7 +139,7 @@ export function initSchema(db: DatabaseType): void {
 
 **设计动机**：默认值反映中国市场假设——3.5% 提款率（保守于国际通用 4% 规则，适配中国市场预期）、7% 收益率、3% 通胀率。这些值在 `createUser` 时根据 `is_china_market` 标志可被覆盖（详见 [04-models.md](04-models.md)）。
 
-DDL：[schema.ts:16-29](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L16-L29)
+DDL：[schema.ts:16-29](file:///workspace/packages/shared/src/db/schema.ts#L16-L29)
 
 ### 3.2 `accounts`
 
@@ -161,16 +162,16 @@ DDL：[schema.ts:16-29](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L
 | updated_at | INTEGER | ✓ | — | — | 最后修改时间戳 |
 | deleted_flag | INTEGER | ✓ | 0 | — | 软删除标志 |
 
-`account_type` 的 CHECK 约束允许的 11 个值：`checking`、`savings`、`cash`、`investment`、`retirement`、`fund`、`real_estate`、`vehicle`、`credit_card`、`loan`、`mortgage`（见 [schema.ts:37-42](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L37-L42)）。
+`account_type` 的 CHECK 约束允许的 11 个值：`checking`、`savings`、`cash`、`investment`、`retirement`、`fund`、`real_estate`、`vehicle`、`credit_card`、`loan`、`mortgage`（见 [schema.ts:37-42](file:///workspace/packages/shared/src/db/schema.ts#L37-L42)）。
 
 **外键关系**：
 - `user_id` → users(id)
 
-**索引**：`idx_acc_user` on accounts(user_id)（[schema.ts:159](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L159)）
+**索引**：`idx_acc_user` on accounts(user_id)（[schema.ts:159](file:///workspace/packages/shared/src/db/schema.ts#L159)）
 
 **设计动机**：金额用 INTEGER 存储"分"，避免 IEEE 754 浮点误差（参见 [06-utils.md](06-utils.md) 的 `yuanToCents` 说明）。负债账户（asset_class = 'liability'）的 `current_balance` 为负数，使净资产计算可直接 SUM 所有账户余额。
 
-DDL：[schema.ts:32-50](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L32-L50)
+DDL：[schema.ts:32-50](file:///workspace/packages/shared/src/db/schema.ts#L32-L50)
 
 ### 3.3 `categories`
 
@@ -198,11 +199,11 @@ DDL：[schema.ts:32-50](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L
 - `user_id` → users(id)
 - `parent_id` → categories(id)（自引用，允许 NULL）
 
-**索引**：`idx_cat_user` on categories(user_id)（[schema.ts:160](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L160)）
+**索引**：`idx_cat_user` on categories(user_id)（[schema.ts:160](file:///workspace/packages/shared/src/db/schema.ts#L160)）
 
 **设计动机**：`parent_id` 支持两级分类树（一级为大类，二级为子类）。`is_system` 标记内置分类（如 `seedCategories` 注入的 18 个），用户不可删除这些分类（避免破坏统计完整性）。`linked_fire_concept` 字段将分类与 FIRE 知识库 v5.0 的概念关联，5 个种子分类有值（详见 [04-models.md](04-models.md) 的 `seedCategories` 小节）。
 
-DDL：[schema.ts:53-67](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L53-L67)
+DDL：[schema.ts:53-67](file:///workspace/packages/shared/src/db/schema.ts#L53-L67)
 
 ### 3.4 `recurring_transactions`
 
@@ -238,11 +239,11 @@ DDL：[schema.ts:53-67](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L
 - `to_account_id` → accounts(id)
 - `category_id` → categories(id)
 
-**索引**：`idx_recur_user` on recurring_transactions(user_id)（[schema.ts:161](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L161)）
+**索引**：`idx_recur_user` on recurring_transactions(user_id)（[schema.ts:161](file:///workspace/packages/shared/src/db/schema.ts#L161)）
 
 **设计动机**：`interval` 配合 `frequency` 支持"每 N 个月"等模式（如 `frequency='monthly'` + `interval=3` 表示每季度）。`next_due_date` 的 CHECK 约束 `>= start_date` 防止配置错误。`transaction_type` 不允许 `initial_balance`（初始余额不应作为经常性模板）。`end_date` 允许 NULL 表示无限期循环。
 
-DDL：[schema.ts:91-111](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L91-L111)
+DDL：[schema.ts:91-111](file:///workspace/packages/shared/src/db/schema.ts#L91-L111)
 
 ### 3.5 `transactions`
 
@@ -279,11 +280,11 @@ DDL：[schema.ts:91-111](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#
 - `idx_tx_category` on transactions(category_id)
 - `idx_tx_recurring` on transactions(recurring_id)
 
-（[schema.ts:155-158](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L155-L158)）
+（[schema.ts:155-158](file:///workspace/packages/shared/src/db/schema.ts#L155-L158)）
 
 **设计动机**：采用单分录模型，转账交易用 `to_account_id` 表达双账户关系（借方扣减，贷方增加），避免引入独立的双分录账本结构。`amount` 必须为正数（CHECK `amount > 0`），方向由 `transaction_type` 决定（详见 [05-services.md](05-services.md) 的 `balanceDelta` 函数）。`recurring_id` 为可空外键，标记由经常性模板自动生成的交易。
 
-DDL：[schema.ts:72-88](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L72-L88)
+DDL：[schema.ts:72-88](file:///workspace/packages/shared/src/db/schema.ts#L72-L88)
 
 ### 3.6 `net_worth_snapshots`
 
@@ -306,16 +307,16 @@ DDL：[schema.ts:72-88](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L
 | updated_at | INTEGER | ✓ | — | — | 最后修改时间戳 |
 | deleted_flag | INTEGER | ✓ | 0 | — | 软删除标志 |
 
-**表级约束**：`UNIQUE(user_id, snapshot_year_month)`（[schema.ts:127](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L127)）
+**表级约束**：`UNIQUE(user_id, snapshot_year_month)`（[schema.ts:127](file:///workspace/packages/shared/src/db/schema.ts#L127)）
 
 **外键关系**：
 - `user_id` → users(id)
 
-**索引**：`idx_snap_user` on net_worth_snapshots(user_id, snapshot_date DESC)（[schema.ts:162](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L162)）
+**索引**：`idx_snap_user` on net_worth_snapshots(user_id, snapshot_date DESC)（[schema.ts:162](file:///workspace/packages/shared/src/db/schema.ts#L162)）
 
 **设计动机**：快照预计算 4 类资产合计（liquid / invested / use_asset / liability），避免每次查询净资产时实时聚合大量交易记录。`UNIQUE(user_id, snapshot_year_month)` 约束保证每月每用户仅一条快照，是 `generateMonthlySnapshot` 幂等性的数据库层保障（详见 [05-services.md](05-services.md) 的快照服务小节）。`total_liability` 为负数，使 `net_worth = 4 类之和` 自然扣减负债。
 
-DDL：[schema.ts:114-128](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L114-L128)
+DDL：[schema.ts:114-128](file:///workspace/packages/shared/src/db/schema.ts#L114-L128)
 
 ### 3.7 `fire_scenarios`
 
@@ -349,11 +350,11 @@ DDL：[schema.ts:114-128](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts
 **外键关系**：
 - `user_id` → users(id)
 
-**索引**：`idx_fire_user` on fire_scenarios(user_id)（[schema.ts:163](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L163)）
+**索引**：`idx_fire_user` on fire_scenarios(user_id)（[schema.ts:163](file:///workspace/packages/shared/src/db/schema.ts#L163)）
 
 **设计动机**：多场景支持保守/标准/激进对比（不同 `withdrawal_rate` / `expected_return_rate` / `retirement_age` 组合）。两个 CHECK 约束防止不合理配置：`retirement_age > current_age` 确保退休发生在未来；`withdrawal_rate BETWEEN 200 AND 600` 限制提款率在 2%-6% 合理区间（过低导致 FIRE 数过高不切实际，过高有耗尽风险）。FIRE 投影结果**不持久化**——每次查询时由 `runProjection` 实时计算（详见 [05-services.md](05-services.md) 的 fire-calc 小节），避免数据冗余与一致性问题。
 
-DDL：[schema.ts:131-152](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L131-L152)
+DDL：[schema.ts:131-152](file:///workspace/packages/shared/src/db/schema.ts#L131-L152)
 
 ---
 
@@ -385,7 +386,7 @@ erDiagram
 
 ## 5. 索引清单
 
-源码：[schema.ts:155-163](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L155-L163)
+源码：[schema.ts:155-163](file:///workspace/packages/shared/src/db/schema.ts#L155-L163)
 
 共 9 个索引，全部使用 `CREATE INDEX IF NOT EXISTS`（幂等）。`transactions` 表占 4 个（查询热点），其余 5 张表各 1 个。
 

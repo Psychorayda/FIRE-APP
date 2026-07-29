@@ -1,7 +1,7 @@
 # 04-models.md — 数据模型层
 
-> **最后更新**: 2026-07-15
-> **对应代码**: `fire-app/src/models/`
+> **最后更新**: 2026-07-29
+> **对应代码**: `packages/shared/src/models/`
 > **导航**: [← 返回主页](CODE_WIKI.md) | [上一节](03-types.md) | [下一节](05-services.md)
 
 ---
@@ -40,7 +40,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ## 2. user.ts
 
-源码：[user.ts](file:///workspace/FIRE%20APP/fire-app/src/models/user.ts)
+源码：[user.ts](file:///workspace/packages/shared/src/models/user.ts)
 
 **职责**：用户档案 CRUD 与默认偏好管理（中国市场假设影响默认提款率）
 
@@ -85,7 +85,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ### 2.3 关键函数详解
 
-#### `createUser`（[user.ts:28-58](file:///workspace/FIRE%20APP/fire-app/src/models/user.ts#L28-L58)）
+#### `createUser`（[user.ts:28-58](file:///workspace/packages/shared/src/models/user.ts#L28-L58)）
 
 **默认值逻辑**：`is_china_market` 决定 `default_withdrawal_rate` 默认值——中国市场（=1）用 350 基点（3.5%，符合中国社保养老金预期），非中国市场用 400 基点（4%，经典 4% 规则）。
 
@@ -93,7 +93,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 **SQL**：使用命名参数（`@id`、`@display_name`…）的 INSERT 语句，传入完整 `User` 对象。
 
-#### `updateUser`（[user.ts:67-96](file:///workspace/FIRE%20APP/fire-app/src/models/user.ts#L67-L96)）
+#### `updateUser`（[user.ts:67-96](file:///workspace/packages/shared/src/models/user.ts#L67-L96)）
 
 **业务规则**：
 1. 先调用 `getUser` 查询当前记录，不存在则抛 `User not found: ${id}`
@@ -106,7 +106,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ## 3. account.ts
 
-源码：[account.ts](file:///workspace/FIRE%20APP/fire-app/src/models/account.ts)
+源码：[account.ts](file:///workspace/packages/shared/src/models/account.ts)
 
 **职责**：账户 CRUD + 余额查询（可投资余额 / 净资产）+ 软删除（含关联交易保护）
 
@@ -141,7 +141,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ### 3.3 关键函数详解
 
-#### `softDeleteAccount`（[account.ts:103-119](file:///workspace/FIRE%20APP/fire-app/src/models/account.ts#L103-L119)）
+#### `softDeleteAccount`（[account.ts:103-119](file:///workspace/packages/shared/src/models/account.ts#L103-L119)）
 
 **业务规则（关联交易保护）**：
 1. 先调用 `hasTransactions(db, id)` 检查关联交易——查询 `transactions` 表中 `account_id = ? OR to_account_id = ?` 且未软删除的记录
@@ -153,7 +153,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 **关联表**：`accounts`（写）、`transactions`（读，关联检查）
 
-#### `getInvestableBalance`（[account.ts:68-75](file:///workspace/FIRE%20APP/fire-app/src/models/account.ts#L68-L75)）
+#### `getInvestableBalance`（[account.ts:68-75](file:///workspace/packages/shared/src/models/account.ts#L68-L75)）
 
 **SQL**：`SELECT COALESCE(SUM(current_balance), 0) FROM accounts WHERE user_id = ? AND asset_class IN ('liquid', 'invested') AND deleted_flag = 0`
 
@@ -161,19 +161,19 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 **用途**：FIRE 投影（`fire-calc.ts` 的 `runProjection`）读取此值作为投资组合起点。
 
-#### `getNetWorth`（[account.ts:80-87](file:///workspace/FIRE%20APP/fire-app/src/models/account.ts#L80-L87)）
+#### `getNetWorth`（[account.ts:80-87](file:///workspace/packages/shared/src/models/account.ts#L80-L87)）
 
 **SQL**：`SELECT COALESCE(SUM(current_balance), 0) FROM accounts WHERE user_id = ? AND deleted_flag = 0`
 
 **说明**：含全部 4 类资产；负债账户余额为负数（如信用卡 -5000 元），SUM 自然扣减。`getNetWorth` 与 `getInvestableBalance` 的差值即"非投资性资产 - 负债"。
 
-#### `updateAccountBalance`（[account.ts:59-63](file:///workspace/FIRE%20APP/fire-app/src/models/account.ts#L59-L63)）
+#### `updateAccountBalance`（[account.ts:59-63](file:///workspace/packages/shared/src/models/account.ts#L59-L63)）
 
 **特殊处理**：仅更新 `current_balance` 与 `last_updated`，**不**递增 `sync_version`。原因：余额由交易（`transaction-service.ts`）驱动，不视作用户编辑；`sync_version` 用于 LWW 同步时识别用户主动修改的字段。
 
 **调用方**：`services/transaction-service.ts` 在事务内调用此函数联动余额。
 
-#### `hasTransactions`（[account.ts:92-98](file:///workspace/FIRE%20APP/fire-app/src/models/account.ts#L92-L98)）
+#### `hasTransactions`（[account.ts:92-98](file:///workspace/packages/shared/src/models/account.ts#L92-L98)）
 
 **SQL**：`SELECT COUNT(*) FROM transactions WHERE (account_id = ? OR to_account_id = ?) AND deleted_flag = 0`
 
@@ -183,7 +183,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ## 4. category.ts
 
-源码：[category.ts](file:///workspace/FIRE%20APP/fire-app/src/models/category.ts)
+源码：[category.ts](file:///workspace/packages/shared/src/models/category.ts)
 
 **职责**：分类 CRUD + 种子分类初始化（18 个内置分类）
 
@@ -215,11 +215,11 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ### 4.3 关键函数详解
 
-#### `seedCategories`（[category.ts:93-119](file:///workspace/FIRE%20APP/fire-app/src/models/category.ts#L93-L119)）
+#### `seedCategories`（[category.ts:93-119](file:///workspace/packages/shared/src/models/category.ts#L93-L119)）
 
 **用途**：为新用户插入 18 个内置分类（11 支出 + 7 收入），所有种子分类 `is_system = 1`（用户不可删除）。
 
-**18 个种子分类**（来自 [category.ts:18-39](file:///workspace/FIRE%20APP/fire-app/src/models/category.ts#L18-L39) 的 `SEED_CATEGORIES` 数组）：
+**18 个种子分类**（来自 [category.ts:18-39](file:///workspace/packages/shared/src/models/category.ts#L18-L39) 的 `SEED_CATEGORIES` 数组）：
 
 **支出分类（11 个）**：
 
@@ -267,7 +267,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 > ⚠️ **数量校正**：设计文档 `2026-07-15-fire-app-missing-design-documents-plan.md` 第 155 行误写"17 个内置分类"，实际代码为 **18 个**（11 支出 + 7 收入）。详见 [08-design-index.md](08-design-index.md) 已知问题清单。
 
-#### `getCategories`（[category.ts:78-91](file:///workspace/FIRE%20APP/fire-app/src/models/category.ts#L78-L91)）
+#### `getCategories`（[category.ts:78-91](file:///workspace/packages/shared/src/models/category.ts#L78-L91)）
 
 **行为**：可选 `type` 参数——传入时按 type 过滤（仅 income 或仅 expense），不传则返回全部。结果按 `display_order, name` 排序。
 
@@ -277,13 +277,13 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ## 5. transaction.ts
 
-源码：[transaction.ts](file:///workspace/FIRE%20APP/fire-app/src/models/transaction.ts)
+源码：[transaction.ts](file:///workspace/packages/shared/src/models/transaction.ts)
 
 **职责**：交易查询（**仅读操作**）
 
 **依赖**：`DatabaseType`、`Transaction` 接口
 
-> **特别说明**：本文件**不含**创建/编辑/删除函数。交易的写操作涉及账户余额联动，需要事务边界保证原子性，因此放在 [services/transaction-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/transaction-service.ts) 的 `createTransaction` / `editTransaction` / `deleteTransaction` 中实现。
+> **特别说明**：本文件**不含**创建/编辑/删除函数。交易的写操作涉及账户余额联动，需要事务边界保证原子性，因此放在 [services/transaction-service.ts](file:///workspace/packages/shared/src/services/transaction-service.ts) 的 `createTransaction` / `editTransaction` / `deleteTransaction` 中实现。
 
 ### 5.1 函数清单
 
@@ -294,13 +294,13 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ### 5.2 关键函数详解
 
-#### `getTransaction`（[transaction.ts:4-7](file:///workspace/FIRE%20APP/fire-app/src/models/transaction.ts#L4-L7)）
+#### `getTransaction`（[transaction.ts:4-7](file:///workspace/packages/shared/src/models/transaction.ts#L4-L7)）
 
 **SQL**：`SELECT * FROM transactions WHERE id = ? AND deleted_flag = 0`
 
 **用途**：常规业务查询（如交易列表、报表），仅返回活跃记录。
 
-#### `getTransactionById`（[transaction.ts:9-12](file:///workspace/FIRE%20APP/fire-app/src/models/transaction.ts#L9-L12)）
+#### `getTransactionById`（[transaction.ts:9-12](file:///workspace/packages/shared/src/models/transaction.ts#L9-L12)）
 
 **SQL**：`SELECT * FROM transactions WHERE id = ?`
 
@@ -312,7 +312,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ## 6. recurring.ts
 
-源码：[recurring.ts](file:///workspace/FIRE%20APP/fire-app/src/models/recurring.ts)
+源码：[recurring.ts](file:///workspace/packages/shared/src/models/recurring.ts)
 
 **职责**：经常性交易模板 CRUD（自动生成周期性交易）
 
@@ -349,7 +349,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ### 6.3 关键函数详解
 
-#### `updateRecurring`（[recurring.ts:44-48](file:///workspace/FIRE%20APP/fire-app/src/models/recurring.ts#L44-L48)）
+#### `updateRecurring`（[recurring.ts:44-48](file:///workspace/packages/shared/src/models/recurring.ts#L44-L48)）
 
 **签名**：`(db, id, updates: Partial<RecurringTransaction>) => void`
 
@@ -366,7 +366,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ## 7. scenario.ts
 
-源码：[scenario.ts](file:///workspace/FIRE%20APP/fire-app/src/models/scenario.ts)
+源码：[scenario.ts](file:///workspace/packages/shared/src/models/scenario.ts)
 
 **职责**：FIRE 场景 CRUD（多场景支持保守/标准/激进对比）
 
@@ -405,7 +405,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ### 7.3 关键函数详解
 
-#### `updateScenario`（[scenario.ts:47-53](file:///workspace/FIRE%20APP/fire-app/src/models/scenario.ts#L47-L53)）
+#### `updateScenario`（[scenario.ts:47-53](file:///workspace/packages/shared/src/models/scenario.ts#L47-L53)）
 
 **签名**：`(db, id, updates: Partial<FireScenario>) => FireScenario`
 
@@ -430,13 +430,13 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ## 8. snapshot.ts
 
-源码：[snapshot.ts](file:///workspace/FIRE%20APP/fire-app/src/models/snapshot.ts)
+源码：[snapshot.ts](file:///workspace/packages/shared/src/models/snapshot.ts)
 
 **职责**：净资产快照查询与插入（**无 update 函数**）
 
 **依赖**：`DatabaseType`、`NetWorthSnapshot` 接口
 
-> **特别说明**：本文件**不含** update 函数，也**不含**快照生成协调逻辑。快照的"按月幂等检查 + 4 类资产聚合 + 插入"流程在 [services/snapshot-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/snapshot-service.ts) 的 `generateMonthlySnapshot` 中协调。本文件仅提供基础查询与插入原语。
+> **特别说明**：本文件**不含** update 函数，也**不含**快照生成协调逻辑。快照的"按月幂等检查 + 4 类资产聚合 + 插入"流程在 [services/snapshot-service.ts](file:///workspace/packages/shared/src/services/snapshot-service.ts) 的 `generateMonthlySnapshot` 中协调。本文件仅提供基础查询与插入原语。
 
 ### 8.1 函数清单
 
@@ -448,13 +448,13 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ### 8.2 关键函数详解
 
-#### `getSnapshots`（[snapshot.ts:4-6](file:///workspace/FIRE%20APP/fire-app/src/models/snapshot.ts#L4-L6)）
+#### `getSnapshots`（[snapshot.ts:4-6](file:///workspace/packages/shared/src/models/snapshot.ts#L4-L6)）
 
 **SQL**：`SELECT * FROM net_worth_snapshots WHERE user_id = ? AND deleted_flag = 0 ORDER BY snapshot_date DESC`
 
 **用途**：返回用户历史快照时间序列（最新在前），供前端绘制净资产趋势图。
 
-#### `getSnapshotByMonth`（[snapshot.ts:8-11](file:///workspace/FIRE%20APP/fire-app/src/models/snapshot.ts#L8-L11)）
+#### `getSnapshotByMonth`（[snapshot.ts:8-11](file:///workspace/packages/shared/src/models/snapshot.ts#L8-L11)）
 
 **SQL**：`SELECT * FROM net_worth_snapshots WHERE user_id = ? AND snapshot_year_month = ? AND deleted_flag = 0`
 
@@ -462,7 +462,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 **参数 `yearMonth`**：格式 "YYYY-MM"（由 `utils/time.ts` 的 `toYearMonth` 生成）。
 
-#### `insertSnapshot`（[snapshot.ts:13-15](file:///workspace/FIRE%20APP/fire-app/src/models/snapshot.ts#L13-L15)）
+#### `insertSnapshot`（[snapshot.ts:13-15](file:///workspace/packages/shared/src/models/snapshot.ts#L13-L15)）
 
 **签名**：`(db, snapshot: NetWorthSnapshot) => void`
 

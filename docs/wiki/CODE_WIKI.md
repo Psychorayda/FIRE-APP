@@ -1,8 +1,8 @@
 # FIRE APP Code Wiki
 
-> **最后更新**: 2026-07-15
-> **版本**: v1.0
-> **代码基准**: `fire-app/` (TypeScript + better-sqlite3 + vitest)
+> **最后更新**: 2026-07-29
+> **版本**: v1.1
+> **代码基准**: pnpm workspace monorepo（`packages/shared` 数据层 + `apps/desktop` Electron 桌面端）
 > **知识库基础**: `fire-knowledge-schema.yaml` v5.0
 > **原则**: 代码为权威（Code is Authority）
 > **导航**: 本页是 Wiki 主页 | [项目概览 →](01-overview.md)
@@ -20,10 +20,12 @@ FIRE APP 是一个基于 **TypeScript + better-sqlite3** 的个人 FIRE（Financ
 | 维度 | 状态 |
 |------|------|
 | 数据层（数据库 / 类型 / Models / Services / Utils / 测试） | ✅ 已实现 |
-| 前端代码（Electron 主进程 / React 渲染层 / IPC 通道） | ⏳ 规划中 |
+| Electron 桌面端（main 主进程 / preload / renderer 渲染层） | ✅ 已实现 |
+| 前端代码（IPC 通道 / React 19 组件 / Zustand 状态管理） | ✅ 已实现 |
+| pnpm workspace monorepo（`packages/shared` + `apps/desktop`） | ✅ 已实现 |
 | 加密同步层（LWW 引擎 / 跨设备同步） | ⏳ 规划中 |
 
-当前仓库的核心成果是**完整的本地数据层与 FIRE 计算引擎**——从数据库 schema、类型契约、CRUD 模型、事务化服务到测试覆盖（13 个测试文件 / 97 个用例），已构成可独立运行的后端核心；前端 UI 与跨设备同步为后续里程碑。
+当前仓库的核心成果是**完整的本地数据层、FIRE 计算引擎与 Electron 桌面端**——从数据库 schema、类型契约、CRUD 模型、事务化服务到测试覆盖（13 个测试文件 / 97 个用例），再到 Electron 主进程 + IPC 桥 + React 渲染层，已构成可运行的桌面应用；跨设备加密同步为后续里程碑。
 
 ### 1.3 本 Wiki 的目的
 
@@ -44,8 +46,8 @@ FIRE APP 是一个基于 **TypeScript + better-sqlite3** 的个人 FIRE（Financ
 
 设计文档（`docs/superpowers/specs/`）描述项目愿景与设计意图，而 Wiki 描述代码**实际落地**的状态。当两者不一致时，以代码为准。已知的设计-代码差异（均已修正）集中记录在 [08-design-index.md §4](08-design-index.md) 的"已知问题清单"中，例如：
 
-- 设计文档曾写"17 个内置分类"，代码实际为 **18 个**（[category.ts](file:///workspace/FIRE%20APP/fire-app/src/models/category.ts) 的 `SEED_CATEGORIES`）
-- 设计文档曾写"10 种 AccountType 枚举"，代码实际为 **11 种**（[types/index.ts](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts)）
+- 设计文档曾写"17 个内置分类"，代码实际为 **18 个**（[category.ts](file:///workspace/packages/shared/src/models/category.ts) 的 `SEED_CATEGORIES`）
+- 设计文档曾写"10 种 AccountType 枚举"，代码实际为 **11 种**（[types/index.ts](file:///workspace/packages/shared/src/types/index.ts)）
 
 ### 1.5 阅读建议
 
@@ -86,13 +88,13 @@ FIRE APP 是一个基于 **TypeScript + better-sqlite3** 的个人 FIRE（Financ
 
 | # | 文件 | 主题 | 行数 | 对应代码 |
 |---|------|------|------|----------|
-| 01 | [01-overview.md](01-overview.md) | 项目概览 | 426 | `fire-app/src/` |
-| 02 | [02-database.md](02-database.md) | 数据库 Schema | 408 | `fire-app/src/db/` |
-| 03 | [03-types.md](03-types.md) | 类型系统 | 385 | `fire-app/src/types/` |
-| 04 | [04-models.md](04-models.md) | 数据模型层 | 503 | `fire-app/src/models/` |
-| 05 | [05-services.md](05-services.md) | 业务服务层 | 385 | `fire-app/src/services/` |
-| 06 | [06-utils.md](06-utils.md) | 工具模块 | 311 | `fire-app/src/utils/` |
-| 07 | [07-tests.md](07-tests.md) | 测试套件 | 243 | `fire-app/tests/` |
+| 01 | [01-overview.md](01-overview.md) | 项目概览 | 426 | `packages/shared/src/` |
+| 02 | [02-database.md](02-database.md) | 数据库 Schema | 408 | `packages/shared/src/db/` |
+| 03 | [03-types.md](03-types.md) | 类型系统 | 385 | `packages/shared/src/types/` |
+| 04 | [04-models.md](04-models.md) | 数据模型层 | 503 | `packages/shared/src/models/` |
+| 05 | [05-services.md](05-services.md) | 业务服务层 | 385 | `packages/shared/src/services/` |
+| 06 | [06-utils.md](06-utils.md) | 工具模块 | 311 | `packages/shared/src/utils/` |
+| 07 | [07-tests.md](07-tests.md) | 测试套件 | 243 | `packages/shared/tests/` |
 | 08 | [08-design-index.md](08-design-index.md) | 设计文档导航 | 227 | `docs/superpowers/` |
 
 ### 3.2 各子文件摘要
@@ -127,7 +129,7 @@ vitest 2.0 配置（globals + node + 单线程）。13 个测试文件（12 单�
 
 #### 08 — 设计文档导航（[08-design-index.md](08-design-index.md)）
 
-设计文档与实施计划的索引。6 份 spec（用户数据模型 / 前端架构 / UI-UX / 初始化 / 缺失文档规划 / 跨文档审查）+ 3 份 plan（数据模型实施 / 桌面 MVP 里程碑 1 / 阶段 1 设计文档）。已知问题清单（2 个已修正错误）。尚未实现的规划（前端代码 / 加密同步层）。
+设计文档与实施计划的索引。6 份 spec（用户数据模型 / 前端架构 / UI-UX / 初始化 / 缺失文档规划 / 跨文档审查）+ 3 份 plan（数据模型实施 / 桌面 MVP 里程碑 1 / 阶段 1 设计文档）。已知问题清单（2 个已修正错误）。尚未实现的规划（加密同步层）。
 
 ### 3.3 阅读顺序建议
 
@@ -148,25 +150,25 @@ vitest 2.0 配置（globals + node + 单线程）。13 个测试文件（12 单�
 
 | 代码文件 | Wiki 位置 | 说明 |
 |----------|-----------|------|
-| [fire-app/src/db/schema.ts](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts) | [02-database.md §2-3](02-database.md) | 7 张表 DDL + 9 索引 + `initSchema` 幂等 |
-| [fire-app/src/db/connection.ts](file:///workspace/FIRE%20APP/fire-app/src/db/connection.ts) | [02-database.md §1](02-database.md) | 连接创建 / WAL 模式 / 外键 PRAGMA |
-| [fire-app/src/types/index.ts](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts) | [03-types.md §2-3](03-types.md) | 5 枚举别名 + 7 实体接口 |
-| [fire-app/src/models/user.ts](file:///workspace/FIRE%20APP/fire-app/src/models/user.ts) | [04-models.md §2](04-models.md) | 用户 CRUD + 中国市场默认提款率 |
-| [fire-app/src/models/account.ts](file:///workspace/FIRE%20APP/fire-app/src/models/account.ts) | [04-models.md §3](04-models.md) | 账户 CRUD + 可投资余额 + 软删除保护 |
-| [fire-app/src/models/category.ts](file:///workspace/FIRE%20APP/fire-app/src/models/category.ts) | [04-models.md §4](04-models.md) | 分类 CRUD + seedCategories (18 个) |
-| [fire-app/src/models/transaction.ts](file:///workspace/FIRE%20APP/fire-app/src/models/transaction.ts) | [04-models.md §5](04-models.md) | 交易查询（仅读，写操作在 services） |
-| [fire-app/src/models/recurring.ts](file:///workspace/FIRE%20APP/fire-app/src/models/recurring.ts) | [04-models.md §6](04-models.md) | 经常性模板 CRUD |
-| [fire-app/src/models/scenario.ts](file:///workspace/FIRE%20APP/fire-app/src/models/scenario.ts) | [04-models.md §7](04-models.md) | FIRE 场景 CRUD |
-| [fire-app/src/models/snapshot.ts](file:///workspace/FIRE%20APP/fire-app/src/models/snapshot.ts) | [04-models.md §8](04-models.md) | 快照查询与插入（无 update） |
-| [fire-app/src/services/fire-calc.ts](file:///workspace/FIRE%20APP/fire-app/src/services/fire-calc.ts) | [05-services.md §2](05-services.md) | FIRE 计算（纯引擎，不写库） |
-| [fire-app/src/services/transaction-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/transaction-service.ts) | [05-services.md §3](05-services.md) | 交易事务 + 余额联动 |
-| [fire-app/src/services/recurring-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/recurring-service.ts) | [05-services.md §4](05-services.md) | 补单引擎（while 循环） |
-| [fire-app/src/services/snapshot-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/snapshot-service.ts) | [05-services.md §5](05-services.md) | 月度快照幂等生成 |
-| [fire-app/src/utils/money.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/money.ts) | [06-utils.md §2](06-utils.md) | 元↔分 + 基点→小数 |
-| [fire-app/src/utils/sync.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/sync.ts) | [06-utils.md §3](06-utils.md) | LWW 冲突判定原语 |
-| [fire-app/src/utils/time.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/time.ts) | [06-utils.md §4](06-utils.md) | 时间戳 + 年月 + 月份运算 |
-| [fire-app/vitest.config.ts](file:///workspace/FIRE%20APP/fire-app/vitest.config.ts) | [07-tests.md §1](07-tests.md) | vitest 配置（单线程） |
-| [fire-app/package.json](file:///workspace/FIRE%20APP/fire-app/package.json) | [01-overview.md §2](01-overview.md) | 依赖与版本 |
+| [packages/shared/src/db/schema.ts](file:///workspace/packages/shared/src/db/schema.ts) | [02-database.md §2-3](02-database.md) | 7 张表 DDL + 9 索引 + `initSchema` 幂等 |
+| [packages/shared/src/db/connection.ts](file:///workspace/packages/shared/src/db/connection.ts) | [02-database.md §1](02-database.md) | 连接创建 / WAL 模式 / 外键 PRAGMA |
+| [packages/shared/src/types/index.ts](file:///workspace/packages/shared/src/types/index.ts) | [03-types.md §2-3](03-types.md) | 5 枚举别名 + 7 实体接口 |
+| [packages/shared/src/models/user.ts](file:///workspace/packages/shared/src/models/user.ts) | [04-models.md §2](04-models.md) | 用户 CRUD + 中国市场默认提款率 |
+| [packages/shared/src/models/account.ts](file:///workspace/packages/shared/src/models/account.ts) | [04-models.md §3](04-models.md) | 账户 CRUD + 可投资余额 + 软删除保护 |
+| [packages/shared/src/models/category.ts](file:///workspace/packages/shared/src/models/category.ts) | [04-models.md §4](04-models.md) | 分类 CRUD + seedCategories (18 个) |
+| [packages/shared/src/models/transaction.ts](file:///workspace/packages/shared/src/models/transaction.ts) | [04-models.md §5](04-models.md) | 交易查询（仅读，写操作在 services） |
+| [packages/shared/src/models/recurring.ts](file:///workspace/packages/shared/src/models/recurring.ts) | [04-models.md §6](04-models.md) | 经常性模板 CRUD |
+| [packages/shared/src/models/scenario.ts](file:///workspace/packages/shared/src/models/scenario.ts) | [04-models.md §7](04-models.md) | FIRE 场景 CRUD |
+| [packages/shared/src/models/snapshot.ts](file:///workspace/packages/shared/src/models/snapshot.ts) | [04-models.md §8](04-models.md) | 快照查询与插入（无 update） |
+| [packages/shared/src/services/fire-calc.ts](file:///workspace/packages/shared/src/services/fire-calc.ts) | [05-services.md §2](05-services.md) | FIRE 计算（纯引擎，不写库） |
+| [packages/shared/src/services/transaction-service.ts](file:///workspace/packages/shared/src/services/transaction-service.ts) | [05-services.md §3](05-services.md) | 交易事务 + 余额联动 |
+| [packages/shared/src/services/recurring-service.ts](file:///workspace/packages/shared/src/services/recurring-service.ts) | [05-services.md §4](05-services.md) | 补单引擎（while 循环） |
+| [packages/shared/src/services/snapshot-service.ts](file:///workspace/packages/shared/src/services/snapshot-service.ts) | [05-services.md §5](05-services.md) | 月度快照幂等生成 |
+| [packages/shared/src/utils/money.ts](file:///workspace/packages/shared/src/utils/money.ts) | [06-utils.md §2](06-utils.md) | 元↔分 + 基点→小数 |
+| [packages/shared/src/utils/sync.ts](file:///workspace/packages/shared/src/utils/sync.ts) | [06-utils.md §3](06-utils.md) | LWW 冲突判定原语 |
+| [packages/shared/src/utils/time.ts](file:///workspace/packages/shared/src/utils/time.ts) | [06-utils.md §4](06-utils.md) | 时间戳 + 年月 + 月份运算 |
+| [packages/shared/vitest.config.ts](file:///workspace/packages/shared/vitest.config.ts) | [07-tests.md §1](07-tests.md) | vitest 配置（单线程） |
+| [packages/shared/package.json](file:///workspace/packages/shared/package.json) | [01-overview.md §2](01-overview.md) | 依赖与版本 |
 
 ### 4.2 按设计问题查 Wiki 章节
 
@@ -200,21 +202,21 @@ vitest 2.0 配置（globals + node + 单线程）。13 个测试文件（12 单�
 
 | 术语 | 含义 | 代码位置 |
 |------|------|----------|
-| 金额=分 | 1 元 = 100 分，整数存储避免 IEEE 754 浮点误差 | [money.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/money.ts) `yuanToCents` |
-| 基点（basis point） | 1% = 100 基点，350 = 3.5%；利率字段统一用基点整数存储 | [types/index.ts](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts) + [money.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/money.ts) `basisPointsToDecimal` |
+| 金额=分 | 1 元 = 100 分，整数存储避免 IEEE 754 浮点误差 | [money.ts](file:///workspace/packages/shared/src/utils/money.ts) `yuanToCents` |
+| 基点（basis point） | 1% = 100 基点，350 = 3.5%；利率字段统一用基点整数存储 | [types/index.ts](file:///workspace/packages/shared/src/types/index.ts) + [money.ts](file:///workspace/packages/shared/src/utils/money.ts) `basisPointsToDecimal` |
 | 软删除（soft delete） | `deleted_flag = 1` 标记删除，不物理删除；查询默认过滤 `deleted_flag = 0` | 所有 models（例外：`getTransactionById` 不过滤） |
-| LWW（Last-Write-Wins） | 同步冲突解决策略，按 `updated_at` 比较决定胜者（`>=` 避免死锁） | [sync.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/sync.ts) `shouldRemoteWin` |
+| LWW（Last-Write-Wins） | 同步冲突解决策略，按 `updated_at` 比较决定胜者（`>=` 避免死锁） | [sync.ts](file:///workspace/packages/shared/src/utils/sync.ts) `shouldRemoteWin` |
 | sync_version | 同步版本号，每次本地修改 +1（单调递增）；不参与 LWW 判定（跨设备无全局可比性） | 所有 7 张表 |
 | UUID v4 主键 | 所有表 `id` 为 UUID v4（TEXT），支持离线创建无冲突 | 所有 models（`uuid` 包 `v4 as uuidv4`） |
 | 4 层架构 | User / Financial Tracking / Snapshot / FIRE Projection 四层领域分层 | [01-overview.md §3](01-overview.md) |
-| FIRE Number | 达到财务独立所需的可投资资产总额 = 年支出 × (10000 / 提款率基点) | [fire-calc.ts](file:///workspace/FIRE%20APP/fire-app/src/services/fire-calc.ts) `calculateFireNumber` |
-| 4% 法则 | 退休后每年提取 4%（25 倍年支出）；中国市场下调至 3.5%（约 28.57 倍） | [users](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts) `default_withdrawal_rate` |
-| 可投资余额 | `liquid + invested` 两类账户余额之和（自住房产 use_asset 不计入） | [account.ts](file:///workspace/FIRE%20APP/fire-app/src/models/account.ts) `getInvestableBalance` |
-| seedCategories | 18 个内置分类（11 支出 + 7 收入），`is_system = 1` 用户不可删；其中 5 个关联 FIRE 知识库概念 | [category.ts](file:///workspace/FIRE%20APP/fire-app/src/models/category.ts) `SEED_CATEGORIES` |
-| 统一符号余额 | 资产余额 ≥ 0，负债余额 ≤ 0；净资产 = `SUM(current_balance)` 一条 SQL 完成 | [account.ts](file:///workspace/FIRE%20APP/fire-app/src/models/account.ts) `getNetWorth` |
-| 同步元数据三件套 | `sync_version` / `updated_at` / `deleted_flag` 三字段，所有表统一含 | [sync.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/sync.ts) `SyncMeta` 接口 |
-| 结果不持久化 | FIRE 投影结果（600 月度数据点）由 `runProjection` 实时计算，不存库 | [fire-calc.ts](file:///workspace/FIRE%20APP/fire-app/src/services/fire-calc.ts) `runProjection` |
-| 事务强一致 | 交易写操作包裹在 `db.transaction` 内，任一步失败整体回滚 | [transaction-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/transaction-service.ts) |
+| FIRE Number | 达到财务独立所需的可投资资产总额 = 年支出 × (10000 / 提款率基点) | [fire-calc.ts](file:///workspace/packages/shared/src/services/fire-calc.ts) `calculateFireNumber` |
+| 4% 法则 | 退休后每年提取 4%（25 倍年支出）；中国市场下调至 3.5%（约 28.57 倍） | [users](file:///workspace/packages/shared/src/db/schema.ts) `default_withdrawal_rate` |
+| 可投资余额 | `liquid + invested` 两类账户余额之和（自住房产 use_asset 不计入） | [account.ts](file:///workspace/packages/shared/src/models/account.ts) `getInvestableBalance` |
+| seedCategories | 18 个内置分类（11 支出 + 7 收入），`is_system = 1` 用户不可删；其中 5 个关联 FIRE 知识库概念 | [category.ts](file:///workspace/packages/shared/src/models/category.ts) `SEED_CATEGORIES` |
+| 统一符号余额 | 资产余额 ≥ 0，负债余额 ≤ 0；净资产 = `SUM(current_balance)` 一条 SQL 完成 | [account.ts](file:///workspace/packages/shared/src/models/account.ts) `getNetWorth` |
+| 同步元数据三件套 | `sync_version` / `updated_at` / `deleted_flag` 三字段，所有表统一含 | [sync.ts](file:///workspace/packages/shared/src/utils/sync.ts) `SyncMeta` 接口 |
+| 结果不持久化 | FIRE 投影结果（600 月度数据点）由 `runProjection` 实时计算，不存库 | [fire-calc.ts](file:///workspace/packages/shared/src/services/fire-calc.ts) `runProjection` |
+| 事务强一致 | 交易写操作包裹在 `db.transaction` 内，任一步失败整体回滚 | [transaction-service.ts](file:///workspace/packages/shared/src/services/transaction-service.ts) |
 
 ---
 
@@ -230,16 +232,16 @@ vitest 2.0 配置（globals + node + 单线程）。13 个测试文件（12 单�
 | Services（4 文件：FIRE 计算 / 交易事务 / 补单 / 快照） | ✅ 已实现 | [05](05-services.md) |
 | Utils（money / sync / time） | ✅ 已实现 | [06](06-utils.md) |
 | 测试套件（13 文件 / 97 用例） | ✅ 已实现 | [07](07-tests.md) |
-| Electron 主进程（持有 better-sqlite3 + IPC handler） | ⏳ 规划中 | — |
-| React 渲染层（React 19 + Tailwind 4 + Zustand 5） | ⏳ 规划中 | — |
-| IPC 通道（`db:init` / `db:user:getFirst` 等） | ⏳ 规划中 | — |
-| DataAccessPort 抽象层 | ⏳ 规划中 | — |
-| 用户引导流程（首次启动向导） | ⏳ 规划中 | — |
-| pnpm workspace monorepo（`packages/shared` + `apps/desktop`） | ⏳ 规划中 | — |
+| Electron 主进程（持有 better-sqlite3 + IPC handler） | ✅ 已实现 | `apps/desktop/src/main/` |
+| React 渲染层（React 19 + Tailwind 4 + Zustand 5） | ✅ 已实现 | `apps/desktop/src/renderer/` |
+| IPC 通道（`db:init` / `db:user:getFirst` 等） | ✅ 已实现 | `apps/desktop/src/main/ipc/` |
+| DataAccessPort 抽象层 | ✅ 已实现 | `apps/desktop/src/renderer/src/data/` |
+| 用户引导流程（首次启动向导） | ✅ 已实现 | `apps/desktop/src/renderer/src/pages/OnboardingPage.tsx` |
+| pnpm workspace monorepo（`packages/shared` + `apps/desktop`） | ✅ 已实现 | 根 `pnpm-workspace.yaml` |
 | 加密同步层（LWW 引擎 / 跨设备同步 / 密钥管理） | ⏳ 规划中 | — |
 | 数据导出 / 备份 | ⏳ 规划中 | — |
 
-> **关键说明**：当前已实现的是**本地数据层与 FIRE 计算引擎**。前端代码规划在 [桌面 MVP 里程碑 1](file:///workspace/FIRE%20APP/docs/superpowers/plans/2026-07-15-fire-app-desktop-mvp-milestone1.md) 中，现有数据层代码可零改动迁移到 `packages/shared`。加密同步层规划在阶段 3（详见 [08-design-index.md §5](08-design-index.md)）。
+> **关键说明**：当前已实现的是**本地数据层、FIRE 计算引擎与 Electron 桌面端**。数据层代码位于 `packages/shared`，桌面端代码位于 `apps/desktop`（main / preload / renderer 三层）。桌面端实施计划见 [桌面 MVP 里程碑 1](file:///workspace/docs/superpowers/plans/2026-07-15-fire-app-desktop-mvp-milestone1.md)。加密同步层规划在阶段 3（详见 [08-design-index.md §5](08-design-index.md)）。
 
 ### 6.2 设计文档索引摘要
 
@@ -248,7 +250,7 @@ vitest 2.0 配置（globals + node + 单线程）。13 个测试文件（12 单�
 | 类型 | 数量 | 位置 | 摘要 |
 |------|------|------|------|
 | spec（设计文档） | 6 份 | `docs/superpowers/specs/` | 用户数据模型 / 前端架构 / UI-UX / 初始化 / 缺失文档规划 / 跨文档审查 |
-| plan（实施计划） | 3 份 | `docs/superpowers/plans/` | 数据模型实施（已完成）/ 桌面 MVP 里程碑 1（规划中）/ 阶段 1 设计文档（已完成） |
+| plan（实施计划） | 3 份 | `docs/superpowers/plans/` | 数据模型实施（已完成）/ 桌面 MVP 里程碑 1（已完成）/ 阶段 1 设计文档（已完成） |
 
 **已知问题清单**：[08-design-index.md §4](08-design-index.md) 记录 2 个已修正错误（种子分类数 17→18、AccountType 枚举数 10→11），Wiki 全文以代码为权威描述。
 
@@ -268,7 +270,7 @@ vitest 2.0 配置（globals + node + 单线程）。13 个测试文件（12 单�
 # NN-name.md — 章节标题
 
 > **最后更新**: YYYY-MM-DD
-> **对应代码**: `fire-app/src/xxx/`
+> **对应代码**: `packages/shared/src/xxx/`
 > **导航**: [← 返回主页](CODE_WIKI.md) | [上一节](NN-prev.md) | [下一节](NN-next.md)
 
 ---
@@ -287,14 +289,14 @@ vitest 2.0 配置（globals + node + 单线程）。13 个测试文件（12 单�
 
 ### 7.4 源码链接格式约定
 
-引用源码文件时使用 `file:///` 协议，路径中的空格用 `%20` 编码：
+引用源码文件时使用 `file:///` 协议：
 
 ```markdown
-[schema.ts](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts)
+[schema.ts](file:///workspace/packages/shared/src/db/schema.ts)
 ```
 
-- 路径前缀统一为 `file:///workspace/FIRE%20APP/`
-- 行号引用格式：`[schema.ts:16-29](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts#L16-L29)`
+- 路径前缀统一为 `file:///workspace/`（monorepo 根），数据层文件位于 `packages/shared/`，桌面端文件位于 `apps/desktop/`
+- 行号引用格式：`[schema.ts:16-29](file:///workspace/packages/shared/src/db/schema.ts#L16-L29)`
 - Wiki 内部导航链接使用相对路径（如 `[01-overview.md](01-overview.md)`），不带 `file:///` 前缀
 
 ### 7.5 内容更新检查清单

@@ -1,6 +1,6 @@
 # 08-design-index.md — 设计文档导航
 
-> **最后更新**: 2026-07-15
+> **最后更新**: 2026-07-29
 > **对应代码**: `docs/superpowers/`
 > **导航**: [← 返回主页](CODE_WIKI.md) | [上一节](07-tests.md) | [下一节]（无）
 
@@ -29,7 +29,7 @@
 
 ### 2.1 用户数据模型设计
 
-- **路径**：[specs/2026-07-12-fire-app-user-data-model-design.md](file:///workspace/FIRE%20APP/docs/superpowers/specs/2026-07-12-fire-app-user-data-model-design.md)
+- **路径**：[specs/2026-07-12-fire-app-user-data-model-design.md](file:///workspace/docs/superpowers/specs/2026-07-12-fire-app-user-data-model-design.md)
 - **日期 / 版本 / 状态**：2026-07-12 / v1.0 / 待审核
 - **范围**：用户数据模型（7 张核心表），不含 UI 设计、API 设计、计算引擎实现
 - **关键贡献**：
@@ -39,14 +39,14 @@
   - 金额用 INTEGER 存储"分"、利率用 INTEGER 存储基点，规避浮点误差
   - 定义 18 个种子分类（11 支出 + 7 收入），其中 5 个关联 FIRE 概念
 - **与代码的对应关系**：
-  - [schema.ts](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts) 实现 7 张表 DDL + 9 个索引
-  - [types/index.ts](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts) 实现 5 个枚举别名 + 7 个实体接口
-  - [models/](file:///workspace/FIRE%20APP/fire-app/src/models/) 7 个文件对应 7 张表的 CRUD
+  - [schema.ts](file:///workspace/packages/shared/src/db/schema.ts) 实现 7 张表 DDL + 9 个索引
+  - [types/index.ts](file:///workspace/packages/shared/src/types/index.ts) 实现 5 个枚举别名 + 7 个实体接口
+  - [models/](file:///workspace/packages/shared/src/models/) 7 个文件对应 7 张表的 CRUD
 - **已知问题**：第 925 行（决策记录 #17）AccountType 枚举数写"10 种"，正确为 11 种（详见 4.2）
 
 ### 2.2 前端架构设计
 
-- **路径**：[specs/2026-07-15-fire-app-frontend-architecture-design.md](file:///workspace/FIRE%20APP/docs/superpowers/specs/2026-07-15-fire-app-frontend-architecture-design.md)
+- **路径**：[specs/2026-07-15-fire-app-frontend-architecture-design.md](file:///workspace/docs/superpowers/specs/2026-07-15-fire-app-frontend-architecture-design.md)
 - **日期 / 版本 / 状态**：2026-07-15 / v1.0 / 待审核
 - **范围**：Electron + React 桌面 MVP 的前端架构设计
 - **关键贡献**：
@@ -55,12 +55,12 @@
   - 抽取纯逻辑代码到 `packages/shared`，为 React Native 移动端扩展预留
   - 定义 IPC 通道清单（如 `db:init`、`db:user:getFirst`、`db:category:seed`）
   - 选定技术栈：Electron 31 + React 19 + Tailwind CSS 4 + Zustand 5
-- **与代码的对应关系**：尚未实现（前端代码未落地，仅现有数据层代码可零改动迁移）
+- **与代码的对应关系**：✅ 已实现（`apps/desktop/`：main 主进程 + preload + renderer，数据层位于 `packages/shared`）
 - **已知问题**：无
 
 ### 2.3 UI/UX 设计
 
-- **路径**：[specs/2026-07-15-fire-app-ui-ux-design.md](file:///workspace/FIRE%20APP/docs/superpowers/specs/2026-07-15-fire-app-ui-ux-design.md)
+- **路径**：[specs/2026-07-15-fire-app-ui-ux-design.md](file:///workspace/docs/superpowers/specs/2026-07-15-fire-app-ui-ux-design.md)
 - **日期 / 版本 / 状态**：2026-07-15 / v1.0 / 待审核
 - **范围**：桌面应用界面设计、交互流程、组件规范
 - **关键贡献**：
@@ -69,12 +69,12 @@
   - 规划 6 个核心页面路由（账户管理 / 交易记录 / 净资产趋势 / FIRE 计算器等）
   - 定义"概览 → 明细 → 操作"三段式信息架构
   - 规定负债负数符号约定与净资产公式（与数据模型文档一致）
-- **与代码的对应关系**：尚未实现（前端代码未落地）
+- **与代码的对应关系**：✅ 已实现（`apps/desktop/src/renderer/`：6 个核心页面 + 组件库 + Zustand store）
 - **已知问题**：无
 
 ### 2.4 应用初始化设计
 
-- **路径**：[specs/2026-07-15-fire-app-initialization-design.md](file:///workspace/FIRE%20APP/docs/superpowers/specs/2026-07-15-fire-app-initialization-design.md)
+- **路径**：[specs/2026-07-15-fire-app-initialization-design.md](file:///workspace/docs/superpowers/specs/2026-07-15-fire-app-initialization-design.md)
 - **日期 / 版本 / 状态**：2026-07-15 / v1.0 / 待审核
 - **范围**：应用启动流程、数据库初始化、用户引导、迁移机制
 - **关键贡献**：
@@ -84,16 +84,16 @@
   - 定义基于 `PRAGMA user_version` 的 schema 版本管理与迁移事务化
   - 规划后续启动的补生成任务（经常性交易 + 月度快照）
 - **与代码的对应关系**：
-  - [connection.ts](file:///workspace/FIRE%20APP/fire-app/src/db/connection.ts) 的 `createDatabase` / `closeDatabase`
-  - [schema.ts](file:///workspace/FIRE%20APP/fire-app/src/db/schema.ts) 的 `initSchema`
-  - [category.ts](file:///workspace/FIRE%20APP/fire-app/src/models/category.ts) 的 `seedCategories`
-  - [recurring-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/recurring-service.ts) 的 `processRecurringTransactions`
-  - [snapshot-service.ts](file:///workspace/FIRE%20APP/fire-app/src/services/snapshot-service.ts) 的 `generateMonthlySnapshot`
+  - [connection.ts](file:///workspace/packages/shared/src/db/connection.ts) 的 `createDatabase` / `closeDatabase`
+  - [schema.ts](file:///workspace/packages/shared/src/db/schema.ts) 的 `initSchema`
+  - [category.ts](file:///workspace/packages/shared/src/models/category.ts) 的 `seedCategories`
+  - [recurring-service.ts](file:///workspace/packages/shared/src/services/recurring-service.ts) 的 `processRecurringTransactions`
+  - [snapshot-service.ts](file:///workspace/packages/shared/src/services/snapshot-service.ts) 的 `generateMonthlySnapshot`
 - **已知问题**：无
 
 ### 2.5 缺失设计文档规划
 
-- **路径**：[specs/2026-07-15-fire-app-missing-design-documents-plan.md](file:///workspace/FIRE%20APP/docs/superpowers/specs/2026-07-15-fire-app-missing-design-documents-plan.md)
+- **路径**：[specs/2026-07-15-fire-app-missing-design-documents-plan.md](file:///workspace/docs/superpowers/specs/2026-07-15-fire-app-missing-design-documents-plan.md)
 - **日期 / 版本 / 状态**：2026-07-15 / v1.0 / 待审核
 - **范围**：识别设计空白，制定三阶段分批设计计划
 - **关键贡献**：
@@ -107,7 +107,7 @@
 
 ### 2.6 设计文档全面复盘分析报告
 
-- **路径**：[specs/2026-07-15-fire-app-design-documents-review.md](file:///workspace/FIRE%20APP/docs/superpowers/specs/2026-07-15-fire-app-design-documents-review.md)
+- **路径**：[specs/2026-07-15-fire-app-design-documents-review.md](file:///workspace/docs/superpowers/specs/2026-07-15-fire-app-design-documents-review.md)
 - **日期 / 版本 / 状态**：2026-07-15 / v1.0 / 已完成（审查报告）
 - **范围**：跨文档一致性检查、文档与代码对齐验证、缺失内容识别
 - **关键贡献**：
@@ -125,7 +125,7 @@
 
 ### 3.1 数据模型实施计划
 
-- **路径**：[plans/2026-07-13-fire-app-data-model-implementation.md](file:///workspace/FIRE%20APP/docs/superpowers/plans/2026-07-13-fire-app-data-model-implementation.md)
+- **路径**：[plans/2026-07-13-fire-app-data-model-implementation.md](file:///workspace/docs/superpowers/plans/2026-07-13-fire-app-data-model-implementation.md)
 - **日期 / 状态**：2026-07-13 / 已完成
 - **范围**：数据模型层代码实现（7 张表 schema + CRUD + 服务层 + 工具层 + 测试）
 - **关键任务**：
@@ -137,8 +137,8 @@
 
 ### 3.2 桌面 MVP 里程碑 1：架构验证切片
 
-- **路径**：[plans/2026-07-15-fire-app-desktop-mvp-milestone1.md](file:///workspace/FIRE%20APP/docs/superpowers/plans/2026-07-15-fire-app-desktop-mvp-milestone1.md)
-- **日期 / 状态**：2026-07-15 / 规划中（前端代码尚未落地）
+- **路径**：[plans/2026-07-15-fire-app-desktop-mvp-milestone1.md](file:///workspace/docs/superpowers/plans/2026-07-15-fire-app-desktop-mvp-milestone1.md)
+- **日期 / 状态**：2026-07-15 / 已完成（monorepo 已建立，桌面端已落地）
 - **范围**：搭建 Electron 桌面应用骨架，验证主进程 + IPC 桥 + React 渲染进程的端到端数据通路
 - **关键任务**：
   - 建立 pnpm workspace monorepo（`packages/shared` + `apps/desktop`）
@@ -149,7 +149,7 @@
 
 ### 3.3 阶段 1 设计文档编写计划
 
-- **路径**：[plans/2026-07-15-fire-app-stage1-design-documents.md](file:///workspace/FIRE%20APP/docs/superpowers/plans/2026-07-15-fire-app-stage1-design-documents.md)
+- **路径**：[plans/2026-07-15-fire-app-stage1-design-documents.md](file:///workspace/docs/superpowers/plans/2026-07-15-fire-app-stage1-design-documents.md)
 - **日期 / 状态**：2026-07-15 / 已完成（已产出 3 份 spec）
 - **范围**：编写阶段 1 的三份设计文档（前端架构 + UI/UX + 应用初始化）
 - **关键任务**：
@@ -163,7 +163,7 @@
 
 ## 4. 已知问题清单（历史记录）
 
-以下问题曾在 [设计文档审查报告](file:///workspace/FIRE%20APP/docs/superpowers/specs/2026-07-15-fire-app-design-documents-review.md) 第 2 节"确认的错误"中记录。**经 Wiki 编写时（2026-07-15）复核，两处错误均已在源文档中修正**，本节仅作历史记录保留。
+以下问题曾在 [设计文档审查报告](file:///workspace/docs/superpowers/specs/2026-07-15-fire-app-design-documents-review.md) 第 2 节"确认的错误"中记录。**经 Wiki 编写时（2026-07-15）复核，两处错误均已在源文档中修正**，本节仅作历史记录保留。
 
 ### 4.1 种子分类数量错误（已修正）
 
@@ -173,7 +173,7 @@
 | **历史错误** | 曾写"17 个内置分类" |
 | **正确值** | **18 个**（11 支出 + 7 收入） |
 | **当前状态** | ✅ 已修正 — 源文档第 155 行现显示"18 个内置分类" |
-| **代码权威** | [category.ts](file:///workspace/FIRE%20APP/fire-app/src/models/category.ts) `SEED_CATEGORIES` 数组有 18 条记录 |
+| **代码权威** | [category.ts](file:///workspace/packages/shared/src/models/category.ts) `SEED_CATEGORIES` 数组有 18 条记录 |
 
 ### 4.2 AccountType 枚举数量错误（已修正）
 
@@ -183,14 +183,14 @@
 | **历史错误** | 曾写"10 种完整枚举" |
 | **正确值** | **11 种**（checking / savings / cash / investment / retirement / fund / real_estate / vehicle / credit_card / loan / mortgage） |
 | **当前状态** | ✅ 已修正 — 源文档第 925 行现显示"11 种完整枚举" |
-| **代码权威** | [types/index.ts](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts) `AccountType` 类型有 11 个值 |
+| **代码权威** | [types/index.ts](file:///workspace/packages/shared/src/types/index.ts) `AccountType` 类型有 11 个值 |
 
 ### 4.3 修正原则
 
 **Wiki 全文以代码为权威**：
 
-- 以代码 [category.ts](file:///workspace/FIRE%20APP/fire-app/src/models/category.ts) 的 `SEED_CATEGORIES` 数组（**18 条**）为权威 — Wiki 描述为 18 个种子分类
-- 以代码 [types/index.ts](file:///workspace/FIRE%20APP/fire-app/src/types/index.ts) 的 `AccountType` 类型（**11 个值**）为权威 — Wiki 描述为 11 种账户类型
+- 以代码 [category.ts](file:///workspace/packages/shared/src/models/category.ts) 的 `SEED_CATEGORIES` 数组（**18 条**）为权威 — Wiki 描述为 18 个种子分类
+- 以代码 [types/index.ts](file:///workspace/packages/shared/src/types/index.ts) 的 `AccountType` 类型（**11 个值**）为权威 — Wiki 描述为 11 种账户类型
 - 设计文档现已与代码一致，无需逐处修改
 - 未来若发现新的文档-代码差异，应在本节追加条目
 
@@ -198,27 +198,27 @@
 
 ## 5. 尚未实现的规划
 
-以下内容在设计文档中已规划，但代码尚未落地。Wiki 02-06 文件中**不**描述这些内容，仅在此处统一标注。
+以下内容中，前端代码已随桌面 MVP 落地（见 §5.1），仅加密同步层尚未实现。Wiki 02-06 文件描述数据层，前端代码位于 `apps/desktop`，加密同步层在此处统一标注。
 
 ### 5.1 前端代码
 
 | 规划内容 | 设计文档 | 状态 |
 |----------|----------|------|
-| Electron 主进程 | 前端架构设计 | 未实现 |
-| React 渲染层 | 前端架构设计 + UI/UX 设计 | 未实现 |
-| IPC 通道（`db:init` 等） | 前端架构设计 + 初始化设计 | 未实现 |
-| DataAccessPort 抽象层 | 前端架构设计 | 未实现 |
-| Zustand 状态管理 | 前端架构设计 | 未实现 |
-| 路由（6 个核心页面） | 前端架构设计 + UI/UX 设计 | 未实现 |
-| 用户引导流程（首次启动向导） | 初始化设计 | 未实现 |
-| pnpm workspace monorepo 结构 | 桌面 MVP 里程碑 1 | 未实现 |
+| Electron 主进程 | 前端架构设计 | ✅ 已实现（`apps/desktop/src/main/`） |
+| React 渲染层 | 前端架构设计 + UI/UX 设计 | ✅ 已实现（`apps/desktop/src/renderer/`） |
+| IPC 通道（`db:init` 等） | 前端架构设计 + 初始化设计 | ✅ 已实现（`apps/desktop/src/main/ipc/`） |
+| DataAccessPort 抽象层 | 前端架构设计 | ✅ 已实现（`apps/desktop/src/renderer/src/data/`） |
+| Zustand 状态管理 | 前端架构设计 | ✅ 已实现（`apps/desktop/src/renderer/src/stores/`） |
+| 路由（6 个核心页面） | 前端架构设计 + UI/UX 设计 | ✅ 已实现（`apps/desktop/src/renderer/src/pages/` + `router/`） |
+| 用户引导流程（首次启动向导） | 初始化设计 | ✅ 已实现（`OnboardingPage.tsx`） |
+| pnpm workspace monorepo 结构 | 桌面 MVP 里程碑 1 | ✅ 已实现（根 `pnpm-workspace.yaml`） |
 
 ### 5.2 加密同步层
 
 | 规划内容 | 设计文档 | 状态 |
 |----------|----------|------|
 | 加密密钥管理 | 数据模型设计（users.encryption_key_hash 字段） | 未实现 |
-| LWW 同步引擎 | 数据模型设计（sync_version + shouldRemoteWin） | 未实现（[sync.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/sync.ts) 仅提供冲突判断原语，无完整引擎） |
+| LWW 同步引擎 | 数据模型设计（sync_version + shouldRemoteWin） | 未实现（[sync.ts](file:///workspace/packages/shared/src/utils/sync.ts) 仅提供冲突判断原语，无完整引擎） |
 | 跨设备同步 | 缺失设计文档规划（阶段 3） | 未实现 |
 | 数据导出/备份 | 缺失设计文档规划（MVP 阶段手动导出） | 未实现 |
 

@@ -4,9 +4,11 @@ import type { Database as DatabaseType } from 'better-sqlite3';
 
 /**
  * 创建数据库连接
- * @param path 数据库文件路径，':memory:' 为内存数据库（用于测试）
+ * @param path 数据库文件路径（必填），':memory:' 为内存数据库（用于测试）
+ * @throws 空路径抛错，避免误用相对默认值导致数据写到非预期位置
  */
-export function createDatabase(path: string = 'data/fire-app.db'): DatabaseType {
+export function createDatabase(path: string): DatabaseType {
+  if (!path) throw new Error('数据库路径不能为空');
   const db = new Database(path);
 
   // 启用外键约束

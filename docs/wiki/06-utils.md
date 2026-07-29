@@ -1,7 +1,7 @@
 # 06-utils.md — 工具模块
 
-> **最后更新**: 2026-07-15
-> **对应代码**: `fire-app/src/utils/`
+> **最后更新**: 2026-07-29
+> **对应代码**: `packages/shared/src/utils/`
 > **导航**: [← 返回主页](CODE_WIKI.md) | [上一节](05-services.md) | [下一节](07-tests.md)
 
 ---
@@ -25,13 +25,13 @@
 
 ## 2. money.ts — 金额与利率转换
 
-源码：[money.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/money.ts)
+源码：[money.ts](file:///workspace/packages/shared/src/utils/money.ts)
 
 本模块负责金额与利率的存储格式转换。项目统一约定：金额以整数"分"存储（避免浮点误差），利率以整数"基点"存储（350 基点 = 3.5%）。
 
 ### 2.1 `yuanToCents(yuan: number): number`
 
-源码：[money.ts:8](file:///workspace/FIRE%20APP/fire-app/src/utils/money.ts#L8)
+源码：[money.ts:8](file:///workspace/packages/shared/src/utils/money.ts#L8)
 
 **用途**：元转分（用户输入的元转为数据库存储的整数分）
 
@@ -48,7 +48,7 @@ return Math.round(Math.round(yuan * 1000) / 10);
 
 ### 2.2 `centsToYuan(cents: number): number`
 
-源码：[money.ts:15](file:///workspace/FIRE%20APP/fire-app/src/utils/money.ts#L15)
+源码：[money.ts:15](file:///workspace/packages/shared/src/utils/money.ts#L15)
 
 **用途**：分转元（用于 UI 展示）
 
@@ -62,7 +62,7 @@ return cents / 100;
 
 ### 2.3 `basisPointsToDecimal(basisPoints: number): number`
 
-源码：[money.ts:23](file:///workspace/FIRE%20APP/fire-app/src/utils/money.ts#L23)
+源码：[money.ts:23](file:///workspace/packages/shared/src/utils/money.ts#L23)
 
 **用途**：基点转小数（利率字段存储为基点整数，计算时需转为小数）
 
@@ -86,15 +86,15 @@ return basisPoints / 10000;
 
 ## 3. sync.ts — 同步元数据
 
-源码：[sync.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/sync.ts)
+源码：[sync.ts](file:///workspace/packages/shared/src/utils/sync.ts)
 
 本模块为记录级 LWW（Last-Write-Wins）同步提供原语。所有数据表均含 `updated_at` / `sync_version` / `deleted_flag` 三字段，本模块封装这三字段的生成与冲突判定逻辑。
 
-**依赖**：导入 [time.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/time.ts) 的 `nowMs` 用于生成时间戳。
+**依赖**：导入 [time.ts](file:///workspace/packages/shared/src/utils/time.ts) 的 `nowMs` 用于生成时间戳。
 
 ### 3.1 `SyncMeta` 接口
 
-源码：[sync.ts:4](file:///workspace/FIRE%20APP/fire-app/src/utils/sync.ts#L4)
+源码：[sync.ts:4](file:///workspace/packages/shared/src/utils/sync.ts#L4)
 
 ```typescript
 export interface SyncMeta {
@@ -114,7 +114,7 @@ export interface SyncMeta {
 
 ### 3.2 `createSyncMeta(): SyncMeta`
 
-源码：[sync.ts:13](file:///workspace/FIRE%20APP/fire-app/src/utils/sync.ts#L13)
+源码：[sync.ts:13](file:///workspace/packages/shared/src/utils/sync.ts#L13)
 
 **用途**：创建初始同步元数据（新记录插入时使用）
 
@@ -132,7 +132,7 @@ export interface SyncMeta {
 
 ### 3.3 `bumpSyncVersion(current: SyncMeta): SyncMeta`
 
-源码：[sync.ts:24](file:///workspace/FIRE%20APP/fire-app/src/utils/sync.ts#L24)
+源码：[sync.ts:24](file:///workspace/packages/shared/src/utils/sync.ts#L24)
 
 **用途**：更新记录时递增同步版本号并刷新时间戳
 
@@ -155,7 +155,7 @@ export interface SyncMeta {
 
 ### 3.4 `shouldRemoteWin(local: SyncMeta, remote: SyncMeta): boolean`
 
-源码：[sync.ts:36](file:///workspace/FIRE%20APP/fire-app/src/utils/sync.ts#L36)
+源码：[sync.ts:36](file:///workspace/packages/shared/src/utils/sync.ts#L36)
 
 **用途**：LWW 冲突解决：判断同步拉取的远程记录是否应该覆盖本地记录
 
@@ -178,13 +178,13 @@ return remote.updated_at >= local.updated_at;
 
 ## 4. time.ts — 时间工具
 
-源码：[time.ts](file:///workspace/FIRE%20APP/fire-app/src/utils/time.ts)
+源码：[time.ts](file:///workspace/packages/shared/src/utils/time.ts)
 
 本模块提供时间戳生成与年月运算工具。所有方法使用 UTC 时区（详见第 5 节约定）。
 
 ### 4.1 `nowMs(): number`
 
-源码：[time.ts:6](file:///workspace/FIRE%20APP/fire-app/src/utils/time.ts#L6)
+源码：[time.ts:6](file:///workspace/packages/shared/src/utils/time.ts#L6)
 
 **用途**：当前 Unix 时间戳（毫秒）
 
@@ -198,7 +198,7 @@ return Date.now();
 
 ### 4.2 `toYearMonth(timestampMs: number): string`
 
-源码：[time.ts:13](file:///workspace/FIRE%20APP/fire-app/src/utils/time.ts#L13)
+源码：[time.ts:13](file:///workspace/packages/shared/src/utils/time.ts#L13)
 
 **用途**：从毫秒时间戳提取 "YYYY-MM" 格式字符串
 
@@ -225,7 +225,7 @@ return `${year}-${month}`;
 
 ### 4.3 `addMonths(timestampMs: number, months: number): number`
 
-源码：[time.ts:24](file:///workspace/FIRE%20APP/fire-app/src/utils/time.ts#L24)
+源码：[time.ts:24](file:///workspace/packages/shared/src/utils/time.ts#L24)
 
 **用途**：在时间戳上增加 N 个月，返回新的时间戳
 
@@ -260,7 +260,7 @@ JavaScript 的 `setUTCMonth` 在目标月份天数不足时会自动"溢出"到�
 
 ### 4.4 `monthsBetween(startMs: number, endMs: number): number`
 
-源码：[time.ts:38](file:///workspace/FIRE%20APP/fire-app/src/utils/time.ts#L38)
+源码：[time.ts:38](file:///workspace/packages/shared/src/utils/time.ts#L38)
 
 **用途**：计算两个时间戳之间的月数差
 
@@ -300,9 +300,9 @@ UTC 约定在以下函数中体现：
 
 | 函数 | 使用的 UTC 方法 | 文件 |
 |------|-----------------|------|
-| `toYearMonth` | `getUTCFullYear` / `getUTCMonth` | [time.ts:15-16](file:///workspace/FIRE%20APP/fire-app/src/utils/time.ts#L15-L16) |
-| `addMonths` | `getUTCDate` / `setUTCMonth` / `setUTCDate` | [time.ts:26-31](file:///workspace/FIRE%20APP/fire-app/src/utils/time.ts#L26-L31) |
-| `monthsBetween` | `getUTCFullYear` / `getUTCMonth` | [time.ts:41-42](file:///workspace/FIRE%20APP/fire-app/src/utils/time.ts#L41-L42) |
+| `toYearMonth` | `getUTCFullYear` / `getUTCMonth` | [time.ts:15-16](file:///workspace/packages/shared/src/utils/time.ts#L15-L16) |
+| `addMonths` | `getUTCDate` / `setUTCMonth` / `setUTCDate` | [time.ts:26-31](file:///workspace/packages/shared/src/utils/time.ts#L26-L31) |
+| `monthsBetween` | `getUTCFullYear` / `getUTCMonth` | [time.ts:41-42](file:///workspace/packages/shared/src/utils/time.ts#L41-L42) |
 
 ### 5.3 注意事项
 
