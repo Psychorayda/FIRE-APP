@@ -9,6 +9,7 @@ import { AccountsPage } from '../pages/AccountsPage.js';
 import { TransactionsPage } from '../pages/TransactionsPage.js';
 import { NetWorthPage } from '../pages/NetWorthPage.js';
 import { FireCalculatorPage } from '../pages/FireCalculatorPage.js';
+import { SettingsPage } from '../pages/SettingsPage.js';
 
 export const router = createHashRouter([
   {
@@ -26,6 +27,7 @@ export const router = createHashRouter([
           { path: '/transactions', element: <TransactionsPage /> },
           { path: '/net-worth', element: <NetWorthPage /> },
           { path: '/fire-calculator', element: <FireCalculatorPage /> },
+          { path: '/settings', element: <SettingsPage /> },
         ],
       },
     ],
