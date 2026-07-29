@@ -168,6 +168,15 @@ describe('validateScenarioField', () => {
   it('monthly_savings=-1 失败', () => {
     expect(validateScenarioField('monthly_savings', -1)).toBe('每月储蓄不能为负');
   });
+  it('name="标准计划" 通过', () => {
+    expect(validateScenarioField('name', '标准计划')).toBe('');
+  });
+  it('name="" 失败（空字符串）', () => {
+    expect(validateScenarioField('name', '')).toBe('场景名称需在 1-50 字符之间');
+  });
+  it('name=51 字符 失败', () => {
+    expect(validateScenarioField('name', 'a'.repeat(51))).toBe('场景名称需在 1-50 字符之间');
+  });
   it('未知字段返回空字符串', () => {
     expect(validateScenarioField('sync_version', 0)).toBe('');
   });

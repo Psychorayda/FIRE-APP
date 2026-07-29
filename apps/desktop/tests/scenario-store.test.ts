@@ -126,17 +126,26 @@ describe('scenario-store', () => {
     );
   });
 
-  it('updateScenario 乐观更新本地 scenarios', async () => {
-    const scenarios = [makeScenario({ id: 'scn-1', current_age: 30 })];
-    (window.dataAccess.scenario.list as any).mockResolvedValue(scenarios);
+  it('updateScenario 乐观更新本地并直接持久化（无 debounce）', async () => {
+    (window.dataAccess.scenario.list as any).mockResolvedValue(
+      [makeScenario({ id: 'scn-1', current_age: 30 })]
+    );
     await useScenarioStore.getState().fetchScenarios('user-1');
     vi.clearAllMocks();
+
+    // 更新后 list 返回已更新的场景
+    // After update, list returns updated scenario
+    (window.dataAccess.scenario.list as any).mockResolvedValue(
+      [makeScenario({ id: 'scn-1', current_age: 35 })]
+    );
 
     await useScenarioStore.getState().updateScenario('scn-1', { current_age: 35 }, 'user-1');
 
     const state = useScenarioStore.getState();
     // 乐观更新立即反映
     expect(state.scenarios[0].current_age).toBe(35);
+    // 直接调用 scenario.update（无 debounce 延迟）
+    expect(window.dataAccess.scenario.update).toHaveBeenCalledWith('scn-1', { current_age: 35 });
   });
 
   it('runProjection 设置 projectionLoading 并存储结果', async () => {

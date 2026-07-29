@@ -1,6 +1,6 @@
 // FIRE 计算器页 / FIRE calculator page
-// 多场景管理 + 参数表单（debounce 自动保存）+ 实时投影 + 结果展示
-// Multi-scenario + form (debounce auto-save) + realtime projection + results
+// 多场景管理 + 参数表单（手动保存）+ 实时投影 + 结果展示
+// Multi-scenario + form (manual save) + realtime projection + results
 
 import { useEffect, useState } from 'react';
 import { useAppStore } from '../stores/app-store.js';
@@ -100,9 +100,9 @@ export function FireCalculatorPage() {
 
           <ScenarioForm
             scenario={currentScenario!}
-            onFieldChange={(field, value) => {
-              const updated = { ...currentScenario!, [field]: value };
-              updateScenario(currentScenario!.id, { [field]: value }, currentUser!.id);
+            onSave={(updates) => {
+              const updated = { ...currentScenario!, ...updates };
+              updateScenario(currentScenario!.id, updates, currentUser!.id);
               void runProjection(updated);
             }}
             investableBalance={investableBalance}

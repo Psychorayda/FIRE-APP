@@ -1,5 +1,6 @@
 # 依赖 / Dependencies
 node_modules/
+.pnpm-store/
 
 # 构建产物 / Build output
 dist/

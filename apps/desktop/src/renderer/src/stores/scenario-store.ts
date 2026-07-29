@@ -1,5 +1,5 @@
 // FIRE 场景状态管理 / FIRE scenario state management
-// 含选中场景、投影结果、debounce 自动保存
+// 含选中场景、投影结果、手动保存（直接持久化）
 
 import { create } from 'zustand';
 import type { FireScenario } from '@shared/types/index.js';
@@ -22,11 +22,6 @@ interface ScenarioStore {
   runProjection: (scenario: FireScenario) => Promise<void>;
   clear: () => void;
 }
-
-// debounce timer（模块级单例）
-// debounce timer (module-level singleton)
-let updateTimer: ReturnType<typeof setTimeout> | null = null;
-const DEBOUNCE_MS = 500;
 
 export const useScenarioStore = create<ScenarioStore>((set, get) => ({
   scenarios: [],
@@ -74,18 +69,15 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
       ),
     }));
 
-    // debounce 持久化
-    // debounced persistence
-    if (updateTimer) clearTimeout(updateTimer);
-    updateTimer = setTimeout(async () => {
-      try {
-        await dataAccess.updateScenario(id, updates);
-        const scenarios = await dataAccess.getScenarios(userId);
-        set({ scenarios });
-      } catch (err) {
-        set({ error: (err as Error).message });
-      }
-    }, DEBOUNCE_MS);
+    // 直接持久化（手动保存，不再 debounce）
+    // Direct persistence (manual save, no debounce)
+    try {
+      await dataAccess.updateScenario(id, updates);
+      const scenarios = await dataAccess.getScenarios(userId);
+      set({ scenarios });
+    } catch (err) {
+      set({ error: (err as Error).message });
+    }
   },
 
   selectScenario: (id) => {
@@ -107,10 +99,6 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
   },
 
   clear: () => {
-    if (updateTimer) {
-      clearTimeout(updateTimer);
-      updateTimer = null;
-    }
     set({
       scenarios: [],
       error: null,

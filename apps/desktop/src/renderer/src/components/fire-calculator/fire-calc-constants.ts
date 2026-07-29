@@ -80,6 +80,12 @@ export function validateScenarioField(
 ): string {
   const n = typeof value === 'number' ? value : Number(value);
   switch (field) {
+    case 'name': {
+      const s = typeof value === 'string' ? value : String(value ?? '');
+      const trimmed = s.trim();
+      if (trimmed.length < 1 || trimmed.length > 50) return '场景名称需在 1-50 字符之间';
+      return '';
+    }
     case 'current_age':
       if (!Number.isInteger(n) || n < 18 || n > 80) return '当前年龄需在 18-80 之间';
       return '';
@@ -148,7 +154,7 @@ export const CHINA_WITHDRAWAL_RATE_HINT = '中国市场建议提现率 3.0%-3.5%
 
 /** 表单字段分组配置 */
 // Form field group config
-export type FormFieldType = 'number' | 'amount' | 'percent' | 'toggle';
+export type FormFieldType = 'text' | 'number' | 'amount' | 'percent' | 'toggle';
 
 export interface FormFieldConfig {
   key: keyof FireScenario;
@@ -170,7 +176,7 @@ export const FORM_FIELD_GROUPS: ReadonlyArray<FormFieldGroup> = [
   {
     title: '基本参数',
     fields: [
-      { key: 'name', label: '场景名称', type: 'number', required: true },
+      { key: 'name', label: '场景名称', type: 'text', required: true },
       { key: 'current_age', label: '当前年龄', type: 'number', required: true, min: 18, max: 80 },
       { key: 'retirement_age', label: '退休年龄', type: 'number', required: true, min: 18, max: 80 },
       { key: 'retirement_years', label: '退休后年限', type: 'number', required: true, min: 10, max: 50 },

@@ -105,71 +105,129 @@ describe('ScenarioForm', () => {
     vi.clearAllMocks();
   });
 
-  it('渲染两个分组标题', () => {
-    render(<ScenarioForm scenario={baseScenario} onFieldChange={vi.fn()} investableBalance={null} />);
+  // ============= 浏览模式 =============
+  it('浏览模式渲染两个分组标题', () => {
+    render(<ScenarioForm scenario={baseScenario} onSave={vi.fn()} investableBalance={null} />);
     expect(screen.getByText('基本参数')).toBeInTheDocument();
     expect(screen.getByText('投资参数')).toBeInTheDocument();
   });
 
-  it('百分比字段显示为百分比（7.0 而非 700）', () => {
-    render(<ScenarioForm scenario={baseScenario} onFieldChange={vi.fn()} investableBalance={null} />);
-    // 预期回报率 700 基点 = 7.0%
+  it('浏览模式显示编辑按钮', () => {
+    render(<ScenarioForm scenario={baseScenario} onSave={vi.fn()} investableBalance={null} />);
+    expect(screen.getByText('编辑')).toBeInTheDocument();
+  });
+
+  it('浏览模式以百分比显示利率字段（7% 而非 700）', () => {
+    render(<ScenarioForm scenario={baseScenario} onSave={vi.fn()} investableBalance={null} />);
+    expect(screen.getByText('7%')).toBeInTheDocument();
+  });
+
+  it('浏览模式以货币格式显示金额字段', () => {
+    render(<ScenarioForm scenario={baseScenario} onSave={vi.fn()} investableBalance={null} />);
+    // current_portfolio_value: 10000000 分 = 100000 元 = ¥100,000.00
+    expect(screen.getByText('¥100,000.00')).toBeInTheDocument();
+  });
+
+  it('浏览模式 auto_sync 开启时显示 investableBalance', () => {
+    const syncScenario = { ...baseScenario, auto_sync_assets: 1 };
+    render(<ScenarioForm scenario={syncScenario} onSave={vi.fn()} investableBalance={5000000} />);
+    // 5000000 分 = 50000 元 = ¥50,000.00
+    expect(screen.getByText('¥50,000.00')).toBeInTheDocument();
+  });
+
+  it('浏览模式 is_china_market=1 时显示提现率提示', () => {
+    render(<ScenarioForm scenario={baseScenario} onSave={vi.fn()} investableBalance={null} />);
+    expect(screen.getByText(/中国市场建议提现率/)).toBeInTheDocument();
+  });
+
+  it('浏览模式 is_china_market=0 时不显示提现率提示', () => {
+    const overseasScenario = { ...baseScenario, is_china_market: 0 };
+    render(<ScenarioForm scenario={overseasScenario} onSave={vi.fn()} investableBalance={null} />);
+    expect(screen.queryByText(/中国市场建议提现率/)).not.toBeInTheDocument();
+  });
+
+  // ============= 编辑模式 =============
+  it('点击编辑进入编辑模式，显示保存和取消按钮', () => {
+    render(<ScenarioForm scenario={baseScenario} onSave={vi.fn()} investableBalance={null} />);
+    fireEvent.click(screen.getByText('编辑'));
+    expect(screen.getByText('保存')).toBeInTheDocument();
+    expect(screen.getByText('取消')).toBeInTheDocument();
+  });
+
+  it('编辑模式百分比字段显示为百分比（7 而非 700）', () => {
+    render(<ScenarioForm scenario={baseScenario} onSave={vi.fn()} investableBalance={null} />);
+    fireEvent.click(screen.getByText('编辑'));
     const input = screen.getByLabelText('预期回报率') as HTMLInputElement;
     expect(input.value).toBe('7');
   });
 
-  it('金额字段显示为元（100000 而非 10000000）', () => {
-    render(<ScenarioForm scenario={baseScenario} onFieldChange={vi.fn()} investableBalance={null} />);
+  it('编辑模式金额字段显示为元（100000 而非 10000000）', () => {
+    render(<ScenarioForm scenario={baseScenario} onSave={vi.fn()} investableBalance={null} />);
+    fireEvent.click(screen.getByText('编辑'));
     const input = screen.getByLabelText('当前组合值') as HTMLInputElement;
     expect(input.value).toBe('100000');
   });
 
-  it('auto_sync 开启时当前组合值只读并显示 investableBalance', () => {
+  it('编辑模式 auto_sync 开启时当前组合值只读并显示 investableBalance', () => {
     const syncScenario = { ...baseScenario, auto_sync_assets: 1 };
-    render(<ScenarioForm scenario={syncScenario} onFieldChange={vi.fn()} investableBalance={5000000} />);
+    render(<ScenarioForm scenario={syncScenario} onSave={vi.fn()} investableBalance={5000000} />);
+    fireEvent.click(screen.getByText('编辑'));
     const input = screen.getByLabelText('当前组合值') as HTMLInputElement;
     expect(input.disabled).toBe(true);
     expect(input.value).toBe('50000'); // 5000000 分 → 50000 元
   });
 
-  it('is_china_market=1 时显示提现率提示', () => {
-    render(<ScenarioForm scenario={baseScenario} onFieldChange={vi.fn()} investableBalance={null} />);
-    expect(screen.getByText(/中国市场建议提现率/)).toBeInTheDocument();
-  });
-
-  it('is_china_market=0 时不显示提现率提示', () => {
-    const overseasScenario = { ...baseScenario, is_china_market: 0 };
-    render(<ScenarioForm scenario={overseasScenario} onFieldChange={vi.fn()} investableBalance={null} />);
-    expect(screen.queryByText(/中国市场建议提现率/)).not.toBeInTheDocument();
-  });
-
-  it('修改百分比字段触发 onFieldChange（转基点）', () => {
-    const onFieldChange = vi.fn();
-    render(<ScenarioForm scenario={baseScenario} onFieldChange={onFieldChange} investableBalance={null} />);
+  it('编辑模式修改百分比字段后保存触发 onSave（转基点）', () => {
+    const onSave = vi.fn();
+    render(<ScenarioForm scenario={baseScenario} onSave={onSave} investableBalance={null} />);
+    fireEvent.click(screen.getByText('编辑'));
     const input = screen.getByLabelText('预期回报率') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '8' } });
-    expect(onFieldChange).toHaveBeenCalledWith('expected_return_rate', 800);
+    fireEvent.click(screen.getByText('保存'));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0][0].expected_return_rate).toBe(800); // 8% → 800 基点
   });
 
-  it('修改金额字段触发 onFieldChange（转分）', () => {
-    const onFieldChange = vi.fn();
-    render(<ScenarioForm scenario={baseScenario} onFieldChange={onFieldChange} investableBalance={null} />);
+  it('编辑模式修改金额字段后保存触发 onSave（转分）', () => {
+    const onSave = vi.fn();
+    render(<ScenarioForm scenario={baseScenario} onSave={onSave} investableBalance={null} />);
+    fireEvent.click(screen.getByText('编辑'));
     const input = screen.getByLabelText('每月储蓄') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '2000' } });
-    expect(onFieldChange).toHaveBeenCalledWith('monthly_savings', 200000);
+    fireEvent.click(screen.getByText('保存'));
+    expect(onSave.mock.calls[0][0].monthly_savings).toBe(200000); // 2000 元 → 200000 分
   });
 
-  it('切换 auto_sync 开关触发 onFieldChange', () => {
-    const onFieldChange = vi.fn();
-    render(<ScenarioForm scenario={baseScenario} onFieldChange={onFieldChange} investableBalance={null} />);
+  it('编辑模式切换 auto_sync 开关后保存', () => {
+    const onSave = vi.fn();
+    render(<ScenarioForm scenario={baseScenario} onSave={onSave} investableBalance={null} />);
+    fireEvent.click(screen.getByText('编辑'));
     const toggle = screen.getByLabelText('自动同步资产') as HTMLInputElement;
     fireEvent.click(toggle);
-    expect(onFieldChange).toHaveBeenCalledWith('auto_sync_assets', 1);
+    fireEvent.click(screen.getByText('保存'));
+    expect(onSave.mock.calls[0][0].auto_sync_assets).toBe(1);
   });
 
-  it('非法年龄显示校验错误', () => {
-    const invalidScenario = { ...baseScenario, current_age: 15 };
-    render(<ScenarioForm scenario={invalidScenario} onFieldChange={vi.fn()} investableBalance={null} />);
+  it('点击取消返回浏览模式且不触发 onSave', () => {
+    const onSave = vi.fn();
+    render(<ScenarioForm scenario={baseScenario} onSave={onSave} investableBalance={null} />);
+    fireEvent.click(screen.getByText('编辑'));
+    const input = screen.getByLabelText('预期回报率') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '8' } });
+    fireEvent.click(screen.getByText('取消'));
+    expect(onSave).not.toHaveBeenCalled();
+    // 回到浏览模式
+    expect(screen.getByText('编辑')).toBeInTheDocument();
+  });
+
+  it('校验失败时阻止保存并显示错误', () => {
+    const onSave = vi.fn();
+    render(<ScenarioForm scenario={baseScenario} onSave={onSave} investableBalance={null} />);
+    fireEvent.click(screen.getByText('编辑'));
+    const ageInput = screen.getByLabelText('当前年龄') as HTMLInputElement;
+    fireEvent.change(ageInput, { target: { value: '15' } });
+    fireEvent.click(screen.getByText('保存'));
+    expect(onSave).not.toHaveBeenCalled();
     expect(screen.getByText('当前年龄需在 18-80 之间')).toBeInTheDocument();
   });
 });
@@ -345,7 +403,7 @@ describe('FireCalculatorPage 集成', () => {
 
     render(<FireCalculatorPage />);
 
-    expect(await screen.findByText('标准')).toBeInTheDocument();
+    expect(await screen.findByText('场景详情')).toBeInTheDocument();
     expect(screen.getByText('基本参数')).toBeInTheDocument();
     expect(screen.getByText('FIRE Number')).toBeInTheDocument();
   });
@@ -361,7 +419,7 @@ describe('FireCalculatorPage 集成', () => {
     const btn = await screen.findByText('创建第一个场景');
     fireEvent.click(btn);
 
-    expect(await screen.findByText('我的 FIRE 计划')).toBeInTheDocument();
+    expect(await screen.findByText('场景详情')).toBeInTheDocument();
     expect(window.dataAccess.scenario.create).toHaveBeenCalledTimes(1);
   });
 
@@ -371,7 +429,7 @@ describe('FireCalculatorPage 集成', () => {
     useAppStore.setState({ currentUser: makeUser({}) as any });
 
     render(<FireCalculatorPage />);
-    await screen.findByText('A');
+    await screen.findByText('场景详情');
     vi.clearAllMocks();
 
     fireEvent.click(screen.getByText('B'));
