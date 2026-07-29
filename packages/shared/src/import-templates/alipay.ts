@@ -47,7 +47,7 @@ function parseAlipayRow(row: string[], lineNum: number): ParsedCsvTransaction {
   const counterparty = row[7] ?? '';
   const categoryType = row[5] ?? '';
 
-  const amountYuan = parseFloat(amountStr.replace(/[¥,]/g, '')) || 0;
+  const amountYuan = parseFloat(amountStr.replace(/[¥￥,]/g, '')) || 0;
   const amountCents = Math.round(amountYuan * 100);
   const transactionDate = parseAlipayDate(dateStr);
   const transactionType = amountCents > 0 ? 'income' : amountCents < 0 ? 'expense' : 'transfer';

@@ -44,7 +44,7 @@ function parseWechatRow(row: string[], lineNum: number): ParsedCsvTransaction {
   const direction = row[4] ?? '';
   const amountStr = row[5] ?? '0';
 
-  const amountYuan = parseFloat(amountStr.replace(/[¥,]/g, '')) || 0;
+  const amountYuan = parseFloat(amountStr.replace(/[¥￥,]/g, '')) || 0;
   const amountCents = Math.round(amountYuan * 100);
 
   let transactionType: 'income' | 'expense' | 'transfer';

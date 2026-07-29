@@ -18,10 +18,12 @@ afterEach(() => {
 // window.dataAccess global mock factory
 // 覆盖所有 namespace，每个方法用 vi.fn()，返回 undefined 作为默认值
 // Covers all namespaces, each method is vi.fn() returning undefined by default
-
+// 仅在 jsdom 环境（window 存在）注入；node 环境测试（如 CSV 解析 E2E）无需此 mock
+// Only inject when window exists (jsdom); node-env tests (e.g. CSV parser E2E) skip it
 const fn = () => vi.fn();
 
-window.dataAccess = {
+if (typeof window !== 'undefined') {
+  window.dataAccess = {
   initDatabase: fn(),
   closeDatabase: fn(),
   user: {
@@ -89,3 +91,4 @@ window.dataAccess = {
     showOpenDialog: fn(),
   },
 } as any;
+}
