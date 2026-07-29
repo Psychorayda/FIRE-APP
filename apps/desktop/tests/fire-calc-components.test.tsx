@@ -246,3 +246,48 @@ describe('ProgressGauge', () => {
     expect(screen.getByText('0%')).toBeInTheDocument();
   });
 });
+
+import { ProjectionChart } from '@renderer/components/fire-calculator/ProjectionChart.js';
+import type { MonthlyProjectionPoint } from '@shared/services/fire-calc.js';
+
+function makeProjectionPoints(): MonthlyProjectionPoint[] {
+  return [
+    {
+      month: 1, age: 30.08, balance: 10100000, contribution: 100000,
+      growth: 100000, cumulative_contribution: 100000, cumulative_growth: 100000,
+      phase: 'accumulation',
+    },
+    {
+      month: 2, age: 30.17, balance: 10300000, contribution: 100000,
+      growth: 101000, cumulative_contribution: 200000, cumulative_growth: 201000,
+      phase: 'accumulation',
+    },
+    {
+      month: 301, age: 55.08, balance: 1990000000, contribution: 0,
+      growth: 5000000, cumulative_contribution: 30000000, cumulative_growth: 1960000000,
+      phase: 'retirement',
+    },
+  ];
+}
+
+describe('ProjectionChart', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('loading 时显示加载中', () => {
+    render(<ProjectionChart data={[]} fireNumber={1500000000} loading={true} />);
+    expect(screen.getByText('加载中...')).toBeInTheDocument();
+  });
+
+  it('空数据显示空状态', () => {
+    render(<ProjectionChart data={[]} fireNumber={1500000000} loading={false} />);
+    expect(screen.getByText('暂无投影数据')).toBeInTheDocument();
+  });
+
+  it('有数据时渲染面积图', () => {
+    render(<ProjectionChart data={makeProjectionPoints()} fireNumber={1500000000} loading={false} />);
+    expect(screen.getByTestId('area-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('reference-line')).toBeInTheDocument();
+  });
+});
