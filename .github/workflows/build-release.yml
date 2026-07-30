@@ -16,6 +16,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 完整历史，确保 git tag 能推送
 
       - name: Setup Node 22.14.0
         uses: actions/setup-node@v4
@@ -70,10 +72,29 @@ jobs:
             console.log('Removed @fire-app/shared from dependencies (already bundled into out/)');
           "
 
-      - name: Package .exe and publish to GitHub Releases
-        run: pnpm --filter @fire-app/desktop exec electron-builder --config electron-builder.yml --publish always
+      - name: Package .exe (no auto-publish)
+        # electron-builder --publish never：只打包，不调用 GitHub API
+        # release 由下方 gh CLI 显式创建，避免 electron-builder 26 的 tag 422 问题
+        run: pnpm --filter @fire-app/desktop exec electron-builder --config electron-builder.yml --publish never
+
+      - name: Create GitHub release and upload assets
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ env.version }}
+        run: |
+          # 显式创建 git tag + release（gh CLI 兼容性更好）
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"
+          # 创建 prerelease 并上传所有 .exe 和 latest.yml
+          gh release create "v${VERSION}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "v${VERSION}" \
+            --notes "Pre-release build ${VERSION}" \
+            --prerelease \
+            release/*.exe release/latest.yml
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
