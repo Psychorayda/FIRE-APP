@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Category } from '../types/index.js';
 import type { ExportEnvelope, ExportTableName } from './export-service.js';
 import { EXPORT_TABLE_NAMES } from './export-service.js';
+import { getColumnWhitelist, filterRecordColumns } from './column-whitelist.js';
 import type { ParsedCsvTransaction } from '../import-templates/types.js';
 import { inferCategory } from '../import-templates/keyword-rules.js';
 import { resolveCategoryPlaceholder } from '../import-templates/placeholder-resolver.js';
@@ -68,6 +69,23 @@ function validateEnvelope(envelope: ExportEnvelope): { success: boolean; errors:
   if (envelope.header.crypto !== null) errors.push('加密文件暂不支持导入');
   const tableCount = Object.keys(envelope.data).length;
   if (tableCount !== EXPORT_TABLE_NAMES.length) errors.push(`数据表数量不匹配：期望 ${EXPORT_TABLE_NAMES.length}，实际 ${tableCount}`);
+  // 校验 data 键名严格等于 7 张表名集合
+  const dataKeys = Object.keys(envelope.data).sort();
+  const expectedKeys = [...EXPORT_TABLE_NAMES].sort();
+  if (JSON.stringify(dataKeys) !== JSON.stringify(expectedKeys)) {
+    errors.push(`数据表名不匹配：期望 ${expectedKeys.join(',')}，实际 ${dataKeys.join(',')}`);
+  }
+  // 校验每条记录字段名在白名单内
+  for (const tableName of EXPORT_TABLE_NAMES) {
+    const records = (envelope.data as unknown as Record<string, Record<string, unknown>[]>)[tableName] ?? [];
+    const allowed = new Set(getColumnWhitelist(tableName));
+    for (let i = 0; i < records.length; i++) {
+      const invalidCols = Object.keys(records[i]).filter(k => !allowed.has(k));
+      if (invalidCols.length > 0) {
+        errors.push(`表 ${tableName} 第 ${i + 1} 条记录含非法字段: ${invalidCols.join(', ')}`);
+      }
+    }
+  }
   return { success: errors.length === 0, errors };
 }
 
@@ -86,15 +104,19 @@ function mergeRecordLww(db: DatabaseType, tableName: ExportTableName, record: Re
 }
 
 function insertRecord(db: DatabaseType, tableName: ExportTableName, record: Record<string, unknown>): void {
-  const columns = Object.keys(record);
+  const safe = filterRecordColumns(tableName, record);
+  const columns = Object.keys(safe);
+  if (columns.length === 0) throw new Error(`表 ${tableName} 记录无合法字段`);
   const placeholders = columns.map(() => '?').join(',');
-  db.prepare(`INSERT INTO ${tableName} (${columns.join(',')}) VALUES (${placeholders})`).run(...columns.map(c => record[c]));
+  db.prepare(`INSERT INTO ${tableName} (${columns.join(',')}) VALUES (${placeholders})`).run(...columns.map(c => safe[c]));
 }
 
 function updateRecord(db: DatabaseType, tableName: ExportTableName, record: Record<string, unknown>): void {
-  const columns = Object.keys(record).filter(c => c !== 'id');
+  const safe = filterRecordColumns(tableName, record);
+  const columns = Object.keys(safe).filter(c => c !== 'id');
+  if (columns.length === 0) throw new Error(`表 ${tableName} 记录无可更新字段`);
   const setClause = columns.map(c => `${c} = ?`).join(',');
-  db.prepare(`UPDATE ${tableName} SET ${setClause} WHERE id = ?`).run(...columns.map(c => record[c]), record.id);
+  db.prepare(`UPDATE ${tableName} SET ${setClause} WHERE id = ?`).run(...columns.map(c => safe[c]), safe.id);
 }
 
 function getLocalUserId(db: DatabaseType): string | null {
