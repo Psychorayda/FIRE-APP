@@ -1,7 +1,7 @@
 # FIRE APP Code Wiki
 
-> **最后更新**: 2026-07-29
-> **版本**: v1.1
+> **最后更新**: 2026-07-30
+> **版本**: v2.0
 > **代码基准**: pnpm workspace monorepo（`packages/shared` 数据层 + `apps/desktop` Electron 桌面端）
 > **知识库基础**: `fire-knowledge-schema.yaml` v5.0
 > **原则**: 代码为权威（Code is Authority）
@@ -25,11 +25,11 @@ FIRE APP 是一个基于 **TypeScript + better-sqlite3** 的个人 FIRE（Financ
 | pnpm workspace monorepo（`packages/shared` + `apps/desktop`） | ✅ 已实现 |
 | 加密同步层（LWW 引擎 / 跨设备同步） | ⏳ 规划中 |
 
-当前仓库的核心成果是**完整的本地数据层、FIRE 计算引擎与 Electron 桌面端**——从数据库 schema、类型契约、CRUD 模型、事务化服务到测试覆盖（13 个测试文件 / 97 个用例），再到 Electron 主进程 + IPC 桥 + React 渲染层，已构成可运行的桌面应用；跨设备加密同步为后续里程碑。
+当前仓库的核心成果是**完整的本地数据层、FIRE 计算引擎与 Electron 桌面端**——从数据库 schema、类型契约、CRUD 模型、事务化服务到测试覆盖（shared 22 文件 / 181 用例 + desktop 23 文件 / 293 用例，合计 45 文件 / 474 用例），再到 Electron 主进程 + IPC 桥 + React 渲染层，已构成可运行的桌面应用；跨设备加密同步为后续里程碑。
 
 ### 1.3 本 Wiki 的目的
 
-本 Wiki 全面、结构化地记录 FIRE APP **已实现代码**的设计与实现细节，是代码的"镜像文档"。共 8 个子文件，覆盖：
+本 Wiki 全面、结构化地记录 FIRE APP **已实现代码**的设计与实现细节，是代码的"镜像文档"。共 10 个子文件，覆盖：
 
 - 项目概览与技术栈
 - 数据库 7 张表 schema 与 9 个索引
@@ -39,6 +39,8 @@ FIRE APP 是一个基于 **TypeScript + better-sqlite3** 的个人 FIRE（Financ
 - 工具层（金额 / 同步 / 时间）
 - 测试套件（vitest 配置与代码-测试映射）
 - 设计文档导航与已知问题清单
+- Desktop 主进程（Electron main + IPC + 安全加固）
+- Renderer 渲染层（React 19 + Zustand + 7 页面 + 虚拟化/懒加载）
 
 ### 1.4 "代码为权威"原则说明
 
@@ -74,28 +76,70 @@ FIRE APP 是一个基于 **TypeScript + better-sqlite3** 的个人 FIRE（Financ
 | 类型定义 | 5 枚举别名 + 7 实体接口 |
 | Models 函数数 | 27 个（跨 7 个文件） |
 | Services 文件数 | 4 个（fire-calc / transaction-service / recurring-service / snapshot-service） |
-| 测试规模 | 13 文件 / 13 describe / 97 it |
+| 测试规模 | shared 22 文件 / 181 it + desktop 23 文件 / 293 it（合计 45 文件 / 474 用例） |
 | 金额存储 | 整数"分"（IEEE 754 两阶段取整规避浮点误差） |
 | 利率存储 | 整数"基点"（1% = 100 基点） |
+
+### 2.1 4 层架构总览
+
+FIRE APP 采用 4 层架构（与 [01-overview.md §3.2](01-overview.md) 一致）：① 数据层（`packages/shared`）→ ② desktop main 层（Electron 主进程）→ ③ preload 层（contextBridge 桥）→ ④ renderer 层（React 19 渲染层）。数据层为单一权威，主进程持有 better-sqlite3 连接并通过 IPC 暴露，渲染层不直接接触数据库。
+
+```mermaid
+flowchart TD
+    subgraph L1["① 数据层 (packages/shared)"]
+        DB["db/<br/>connection + schema"]
+        TY["types/<br/>5 枚举 + 7 接口"]
+        MD["models/<br/>7 文件 DAL"]
+        SV["services/<br/>4 文件业务服务"]
+        UT["utils/<br/>money / sync / time"]
+        IT["import-templates/<br/>7 套 CSV 模板"]
+    end
+    subgraph L2["② desktop main 层 (Electron 主进程)"]
+        DM["db-manager.ts<br/>持有 better-sqlite3 连接"]
+        IPC["ipc/<br/>按域注册 handler (9 域)"]
+        PG["path-guard.ts<br/>一次性路径 token"]
+        SC["schemas.ts<br/>zod IPC 输入校验"]
+    end
+    subgraph L3["③ preload 层"]
+        PA["dataAccess<br/>contextBridge 暴露 IPC API"]
+    end
+    subgraph L4["④ renderer 层 (React 19)"]
+        RT["router/<br/>RequireInit + 7 页面路由"]
+        ST["stores/<br/>Zustand (7 store)"]
+        CP["components/<br/>base / layout / accounts / transactions /<br/>dashboard / net-worth / fire-calculator / data-management"]
+        PG2["pages/<br/>Dashboard / Accounts / Transactions /<br/>NetWorth / FireCalculator / Settings / Onboarding"]
+        DA["data/<br/>data-access-port + ipc-data-access"]
+    end
+
+    L1 -->|"workspace:* 引用"| L2
+    L2 -->|"ipcMain.handle"| L3
+    L3 -->|"contextBridge.exposeInMainWorld"| L4
+    L4 -->|"window.dataAccess.* 调用"| L3
+    DA -->|"实现 data-access-port"| PA
+```
+
+各层职责与代码位置详见 [09-desktop-main.md](09-desktop-main.md)（main + preload）与 [10-renderer.md](10-renderer.md)（renderer）。
 
 ---
 
 ## 3. Wiki 导航目录
 
-本 Wiki 由主页（本文件）与 8 个子文件组成。子文件按"自顶向下"的代码层次组织：从项目概览到数据库、类型、模型、服务、工具，最后是测试与设计文档索引。
+本 Wiki 由主页（本文件）与 10 个子文件组成。子文件按"自顶向下"的代码层次组织：从项目概览到数据库、类型、模型、服务、工具、测试、设计文档索引，最后是 Desktop 主进程与 Renderer 渲染层。
 
 ### 3.1 子文件索引表
 
 | # | 文件 | 主题 | 行数 | 对应代码 |
 |---|------|------|------|----------|
-| 01 | [01-overview.md](01-overview.md) | 项目概览 | 426 | `packages/shared/src/` |
-| 02 | [02-database.md](02-database.md) | 数据库 Schema | 408 | `packages/shared/src/db/` |
-| 03 | [03-types.md](03-types.md) | 类型系统 | 385 | `packages/shared/src/types/` |
-| 04 | [04-models.md](04-models.md) | 数据模型层 | 503 | `packages/shared/src/models/` |
-| 05 | [05-services.md](05-services.md) | 业务服务层 | 385 | `packages/shared/src/services/` |
-| 06 | [06-utils.md](06-utils.md) | 工具模块 | 311 | `packages/shared/src/utils/` |
-| 07 | [07-tests.md](07-tests.md) | 测试套件 | 243 | `packages/shared/tests/` |
-| 08 | [08-design-index.md](08-design-index.md) | 设计文档导航 | 227 | `docs/superpowers/` |
+| 01 | [01-overview.md](01-overview.md) | 项目概览 | 543 | `packages/shared/src/` + `apps/desktop/src/` |
+| 02 | [02-database.md](02-database.md) | 数据库 Schema | 501 | `packages/shared/src/db/` |
+| 03 | [03-types.md](03-types.md) | 类型系统 | 723 | `packages/shared/src/types/` |
+| 04 | [04-models.md](04-models.md) | 数据模型层 | 600 | `packages/shared/src/models/` |
+| 05 | [05-services.md](05-services.md) | 业务服务层 | 682 | `packages/shared/src/services/` |
+| 06 | [06-utils.md](06-utils.md) | 工具模块 | 399 | `packages/shared/src/utils/` |
+| 07 | [07-tests.md](07-tests.md) | 测试套件 | 273 | `packages/shared/tests/` + `apps/desktop/tests/` |
+| 08 | [08-design-index.md](08-design-index.md) | 设计文档导航 | 466 | `docs/superpowers/` |
+| 09 | [09-desktop-main.md](09-desktop-main.md) | Desktop 主进程 | 175 | `apps/desktop/src/main/` + `apps/desktop/src/preload/` |
+| 10 | [10-renderer.md](10-renderer.md) | Renderer 渲染层 | 237 | `apps/desktop/src/renderer/` |
 
 ### 3.2 各子文件摘要
 
@@ -125,20 +169,28 @@ FIRE APP 的全局导览：项目定位（个人 FIRE 财务计算应用）、�
 
 #### 07 — 测试套件（[07-tests.md](07-tests.md)）
 
-vitest 2.0 配置（globals + node + 单线程）。13 个测试文件（12 单元 + 1 集成）与 `src/` 目录镜像。代码-测试映射表统计每个测试文件的 describe / it 数与覆盖范围。含内存数据库约定、beforeEach/afterEach 模式、断言风格、集成测试用例（建账→记账→快照→FIRE 计算端到端验证）。
+vitest 2.0 配置（globals + node + 单线程）。**shared 22 个测试文件 / 181 用例 + desktop 23 个测试文件 / 293 用例（合计 45 文件 / 474 用例）**，与各自 `src/` 目录镜像。代码-测试映射表统计每个测试文件的 describe / it 数与覆盖范围。含内存数据库约定、beforeEach/afterEach 模式、断言风格、集成测试用例（建账→记账→快照→FIRE 计算端到端验证）。
 
 #### 08 — 设计文档导航（[08-design-index.md](08-design-index.md)）
 
 设计文档与实施计划的索引。6 份 spec（用户数据模型 / 前端架构 / UI-UX / 初始化 / 缺失文档规划 / 跨文档审查）+ 3 份 plan（数据模型实施 / 桌面 MVP 里程碑 1 / 阶段 1 设计文档）。已知问题清单（2 个已修正错误）。尚未实现的规划（加密同步层）。
 
+#### 09 — Desktop 主进程（[09-desktop-main.md](09-desktop-main.md)）
+
+Electron 主进程是应用核心宿主层，承担四项职责：应用生命周期与窗口管理、SQLite 连接单例、IPC 桥接（按 9 域注册 handler）、M9 安全加固（sandbox:true + contextIsolation:true + nodeIntegration:false + CSP + 一次性路径 token + zod 输入校验）。入口 [index.ts](file:///workspace/apps/desktop/src/main/index.ts) 在 `app.whenReady()` 中依次执行：固定 userData 路径 → 初始化数据库 → 注册 IPC handlers → 注入 CSP → 创建窗口。preload 经 `contextBridge` 暴露 `window.dataAccess` 命名空间，主进程本身不实现业务逻辑，仅做注册、校验、脱敏与文件 I/O 守卫。
+
+#### 10 — Renderer 渲染层（[10-renderer.md](10-renderer.md)）
+
+渲染层运行在 BrowserWindow 中，技术栈 **React 19 + Zustand 5 + react-router-dom 7 + Tailwind 4 + Recharts 2**，经 electron-vite 打包。不直接接触 better-sqlite3，所有数据操作经 `window.dataAccess` 下发到主进程。结构：入口与路由（RequireInit 守卫 + 7 页面）、7 个 Zustand store、data 抽象（DataAccessPort + IPC 实现 + 单例）、components（base / layout / auxiliary / accounts / transactions / dashboard / net-worth / fire-calculator / data-management）、7 页面（Dashboard / Accounts / Transactions / NetWorth / FireCalculator / Settings / Onboarding）、M9 性能加固（Table 行数 > 20 启用 `@tanstack/react-virtual` 虚拟化、7 页面 React.lazy 懒加载 + manualChunks 分包 react-vendor/recharts/zustand、TransactionsPage `PAGE_SIZE=50` 服务端分页）。
+
 ### 3.3 阅读顺序建议
 
 ```
-01-overview → 02-database → 03-types → 04-models → 05-services → 06-utils → 07-tests → 08-design-index
-   概览        数据库       类型      数据模型     业务服务      工具       测试        设计文档
+01-overview → 02-database → 03-types → 04-models → 05-services → 06-utils → 07-tests → 08-design-index → 09-desktop-main → 10-renderer
+   概览        数据库       类型      数据模型     业务服务      工具       测试        设计文档          Desktop 主进程     Renderer
 ```
 
-每个子文件底部含导航链接，可顺序浏览；本页是各子文件的返回入口。
+每个子文件底部含导航链接，可顺序浏览；10-renderer 末尾的"下一节"回到本主页（CODE_WIKI），本页是各子文件的返回入口。
 
 ---
 
@@ -217,6 +269,12 @@ vitest 2.0 配置（globals + node + 单线程）。13 个测试文件（12 单�
 | 同步元数据三件套 | `sync_version` / `updated_at` / `deleted_flag` 三字段，所有表统一含 | [sync.ts](file:///workspace/packages/shared/src/utils/sync.ts) `SyncMeta` 接口 |
 | 结果不持久化 | FIRE 投影结果（600 月度数据点）由 `runProjection` 实时计算，不存库 | [fire-calc.ts](file:///workspace/packages/shared/src/services/fire-calc.ts) `runProjection` |
 | 事务强一致 | 交易写操作包裹在 `db.transaction` 内，任一步失败整体回滚 | [transaction-service.ts](file:///workspace/packages/shared/src/services/transaction-service.ts) |
+| CSP 内容安全策略 | prod 严格（`script-src 'self'`），dev 放宽（`unsafe-inline` + `ws://localhost` 支持 HMR）；启动时按环境注入 `<meta>` | [index.ts](file:///workspace/apps/desktop/src/main/index.ts) |
+| Electron 沙箱 | `sandbox: true` + `contextIsolation: true` + `nodeIntegration: false`，渲染层无 Node 访问 | [index.ts](file:///workspace/apps/desktop/src/main/index.ts) |
+| 路径安全 | 文件 dialog 签发一次性 token，消费后即失效；强制绝对路径且不允许 `..` 穿越到 userData 之外 | [path-guard.ts](file:///workspace/apps/desktop/src/main/ipc/path-guard.ts) |
+| 表格虚拟化 | Table 行数 > 20 启用 `@tanstack/react-virtual`，仅渲染可视行（账户/交易大列表性能） | [Table.tsx](file:///workspace/apps/desktop/src/renderer/src/components/base/Table.tsx) |
+| 路由懒加载 | 7 页面用 `React.lazy` 动态导入 + vite `manualChunks` 分包（react-vendor / recharts / zustand），减小首屏 | [router/index.tsx](file:///workspace/apps/desktop/src/renderer/src/router/index.tsx) |
+| 服务端分页 | TransactionsPage `PAGE_SIZE = 50`，分页参数下发主进程 SQL `LIMIT/OFFSET`，避免一次性加载全表 | [TransactionsPage.tsx](file:///workspace/apps/desktop/src/renderer/src/pages/TransactionsPage.tsx) |
 
 ---
 
@@ -231,12 +289,12 @@ vitest 2.0 配置（globals + node + 单线程）。13 个测试文件（12 单�
 | Models CRUD（7 文件 / 27 函数） | ✅ 已实现 | [04](04-models.md) |
 | Services（4 文件：FIRE 计算 / 交易事务 / 补单 / 快照） | ✅ 已实现 | [05](05-services.md) |
 | Utils（money / sync / time） | ✅ 已实现 | [06](06-utils.md) |
-| 测试套件（13 文件 / 97 用例） | ✅ 已实现 | [07](07-tests.md) |
-| Electron 主进程（持有 better-sqlite3 + IPC handler） | ✅ 已实现 | `apps/desktop/src/main/` |
-| React 渲染层（React 19 + Tailwind 4 + Zustand 5） | ✅ 已实现 | `apps/desktop/src/renderer/` |
-| IPC 通道（`db:init` / `db:user:getFirst` 等） | ✅ 已实现 | `apps/desktop/src/main/ipc/` |
-| DataAccessPort 抽象层 | ✅ 已实现 | `apps/desktop/src/renderer/src/data/` |
-| 用户引导流程（首次启动向导） | ✅ 已实现 | `apps/desktop/src/renderer/src/pages/OnboardingPage.tsx` |
+| 测试套件（shared 22 / 181 + desktop 23 / 293 = 45 文件 / 474 用例） | ✅ 已实现 | [07](07-tests.md) |
+| Electron 主进程（持有 better-sqlite3 + IPC handler + 安全加固） | ✅ 已实现 | [09](09-desktop-main.md) |
+| React 渲染层（React 19 + Tailwind 4 + Zustand 5） | ✅ 已实现 | [10](10-renderer.md) |
+| IPC 通道（`db:init` / `db:user:getFirst` 等 9 域） | ✅ 已实现 | [09](09-desktop-main.md) |
+| DataAccessPort 抽象层 | ✅ 已实现 | [10](10-renderer.md) |
+| 用户引导流程（首次启动向导） | ✅ 已实现 | [10](10-renderer.md) |
 | pnpm workspace monorepo（`packages/shared` + `apps/desktop`） | ✅ 已实现 | 根 `pnpm-workspace.yaml` |
 | 加密同步层（LWW 引擎 / 跨设备同步 / 密钥管理） | ⏳ 规划中 | — |
 | 数据导出 / 备份 | ⏳ 规划中 | — |
