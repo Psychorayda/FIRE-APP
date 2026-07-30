@@ -14,12 +14,12 @@
 
 ## 1. 概述
 
-本文件是 FIRE APP 设计/规划文档的索引。仓库 `docs/superpowers/` 下共有 52 份设计/规划文档：32 份 spec（设计文档）+ 20 份 plan（实施计划），覆盖 M1–M9 全部里程碑及非里程碑文档（环境搭建 / Code Wiki / 安全 / 同步层 / CI / Docker / 验证流程 / Electron 36 升级等）。
+本文件是 FIRE APP 设计/规划文档的索引。仓库 `docs/superpowers/` 下共有 54 份设计/规划文档：33 份 spec（设计文档）+ 21 份 plan（实施计划），覆盖 M1–M9 全部里程碑及非里程碑文档（环境搭建 / Code Wiki / 安全 / 同步层 / CI / Docker / 验证流程 / Electron 36 升级 / 自动更新等）。
 
 **核心原则：Wiki 以代码为权威**。本索引仅作导航与摘要，不复述设计文档的完整内容。当设计文档与代码不一致时，以代码为准，差异集中记录在第 4 节"已知问题清单"中。
 
-- 第 2 节：32 份设计文档（spec）清单与摘要（按日期排序，覆盖 M2–M9 里程碑与非里程碑文档）
-- 第 3 节：20 份实施计划（plan）清单与摘要（按日期排序）
+- 第 2 节：33 份设计文档（spec）清单与摘要（按日期排序，覆盖 M2–M9 里程碑与非里程碑文档）
+- 第 3 节：21 份实施计划（plan）清单与摘要（按日期排序）
 - 第 4 节：已知问题清单（来自设计文档审查报告，含 2 个确认错误）
 - 第 5 节：尚未实现的规划（加密同步层）
 
@@ -275,9 +275,15 @@
 - **日期 / 状态**：2026-07-30 / 已批准，已实现
 - **范围 + 关键贡献**：分层渐进升级（方案 B）——Phase 1 宿主 Node 20→22 LTS + check-env.mjs 动态化消除硬编码版本号；Phase 2 Electron 31→36（Chromium 136 / Node 22.14）+ @electron/rebuild 3.7 + @types/node 22，better-sqlite3 保持 11.x 保守升；Phase 3 构建工具联动（electron-vite 2→3 / vite 5→6 / vitest 2→3 / electron-builder 25→26）。main/preload 零改动（Electron 32-36 breaking 审计确认已显式启用 sandbox/contextIsolation）。PR #1 squash 合并到 main。
 
+### 2.33 自动更新（electron-updater + GitHub Releases）设计
+
+- **路径**：[specs/2026-07-30-fire-app-auto-update-design.md](file:///workspace/docs/superpowers/specs/2026-07-30-fire-app-auto-update-design.md)
+- **日期 / 状态**：2026-07-30 / 已批准，已实现
+- **范围 + 关键贡献**：为打包后的 FIRE App 添加应用内自动更新能力。三层架构——Main 层 `UpdateManager` 封装 electron-updater 6.x 的 autoUpdater（启动延迟 10s 检查 + 24h 定时轮询 + 跳过版本持久化到本地 JSON），通过 `update:*` IPC 通道同步状态给 Renderer 层 `useUpdateStore`（Zustand），驱动 `UpdateDialog`（模态对话框，9 个 phase 状态机）+ `UpdateSection`（设置页更新区）。关键决策：不签名（dev 阶段，用户手动信任 SmartScreen）/ 单渠道 latest / 预发布版本号 `0.0.0-dev.yyyyMMdd.run_number` / NSIS 安装程序退出后启动。CI 每次 push 到 main 通过 electron-builder `--publish always` 自动上传 GitHub Releases。仅 Windows 桌面端。
+
 ---
 
-## 3. 实现计划清单（20 份 plan）
+## 3. 实现计划清单（21 份 plan）
 
 ### 3.1 数据模型实施计划
 
@@ -417,6 +423,12 @@
 - **日期 / 状态**：2026-07-30 / 已实现
 - **范围 + 关键贡献**：10 个 Task 分 3 Phase——P1（Task 1-3）宿主 Node 22 + check-env.mjs 动态化 + CI；P2（Task 4-6）Electron 36 + better-sqlite3 + @electron/rebuild + breaking 审计；P3（Task 7-9）vite+electron-vite / vitest+jsdom / electron-builder；Task 10 完整 E2E + PR。Subagent-Driven 执行，3 次 CI 全绿（P1 2m59s / P2 3m33s / P3 3m28s），PR #1 squash 合并。
 
+### 3.21 自动更新实施计划
+
+- **路径**：[plans/2026-07-30-fire-app-auto-update.md](file:///workspace/docs/superpowers/plans/2026-07-30-fire-app-auto-update.md)
+- **日期 / 状态**：2026-07-30 / 已实现
+- **范围 + 关键贡献**：10 个 Task 串联落地自动更新——Task 1 加 electron-updater 依赖 + electron-builder publish 配置；Task 2-3 主进程 `UpdateManager`（封装 autoUpdater + 启动延迟检查 + 24h 轮询 + 跳过版本持久化）+ `update-handlers.ts`（5 个 IPC handler）；Task 4 preload 暴露 `update` API + `UpdateApi` 类型；Task 5 `useUpdateStore`（Zustand，订阅 main 状态变更）；Task 6-7 `UpdateDialog`（9 phase 状态机模态框）+ `UpdateSection`（设置页更新区）；Task 8 集成到 App.tsx + SettingsPage；Task 9 CI 自动生成预发布版本号 + `--publish always`；Task 10 测试套件（update-store 10 用例 + update-dialog 9 用例 + update-section 用例）。Subagent-Driven 执行，PR #2 待合并。
+
 ---
 
 ## 4. 已知问题清单（历史记录）
@@ -472,6 +484,12 @@
 | 规划内容 | 设计文档 | 状态 |
 |----------|----------|------|
 | Electron 主框架升级 31→36 | [Electron 36 升级设计](file:///workspace/docs/superpowers/specs/2026-07-30-fire-app-electron-36-upgrade-design.md)（§2.32）+ [实施计划](file:///workspace/docs/superpowers/plans/2026-07-30-fire-app-electron-36-upgrade.md)（§3.20） | ✅ 已实现（PR #1 squash 合并到 main，2026-07-30。分层渐进升级：Node 22 + Electron 36 + better-sqlite3 11.x rebuild + 全套构建工具联动。main/preload 零改动，3 次 CI 全绿） |
+
+### 5.3 自动更新（已实现）
+
+| 规划内容 | 设计文档 | 状态 |
+|----------|----------|------|
+| 应用内自动检查 + 下载 + 安装 | [自动更新设计](file:///workspace/docs/superpowers/specs/2026-07-30-fire-app-auto-update-design.md)（§2.33）+ [实施计划](file:///workspace/docs/superpowers/plans/2026-07-30-fire-app-auto-update.md)（§3.21） | ✅ 已实现（PR #2 待合并，2026-07-30。三层架构：Main `UpdateManager` 封装 electron-updater 6.x + Renderer `useUpdateStore` + `UpdateDialog`/`UpdateSection`。启动延迟 10s 检查 + 24h 轮询 + 跳过版本持久化。CI 自动生成 `0.0.0-dev.yyyyMMdd.run_number` 预发布版本号并上传 GitHub Releases。仅 Windows，不签名 dev 阶段） |
 
 ---
 
