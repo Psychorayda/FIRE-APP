@@ -6,6 +6,11 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+# electron-builder --publish always 需要写 release 权限
+# 默认 GITHUB_TOKEN 只读，需显式声明 contents: write
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
