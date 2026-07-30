@@ -97,7 +97,7 @@ FIRE APP 面向**个人使用**，定位为本地优先（local-first）、离�
 | 技术 | 版本 | 用途 |
 |------|------|------|
 | pnpm | >=9.0.0（packageManager pnpm@9.15.0） | workspace 包管理器，管理 `packages/*` 与 `apps/*` |
-| Node.js | >=20.0.0 <22.0.0 | 运行时（engines 约束） |
+| Node.js | >=22.0.0 <24.0.0 | 运行时（engines 约束） |
 | TypeScript | ^5.5.0 | 根 devDependency，类型系统 |
 | ESM 模块 | `"type": "module"` | 全项目使用 ES Module，import 路径带 `.js` 扩展名 |
 
@@ -107,18 +107,18 @@ FIRE APP 面向**个人使用**，定位为本地优先（local-first）、离�
 |------|------|------|------|
 | better-sqlite3 | ^11.0.0 | dependency | SQLite 驱动，同步 API，WAL 模式 |
 | uuid | ^10.0.0 | dependency | UUID v4 生成（`v4 as uuidv4`），所有表主键 |
-| @types/better-sqlite3 | ^7.6.10 | devDependency | better-sqlite3 的类型声明 |
-| @types/node | ^20.14.0 | devDependency | Node.js 类型声明 |
+| @types/better-sqlite3 | ^7.6.13 | devDependency | better-sqlite3 的类型声明 |
+| @types/node | ^22.14.0 | devDependency | Node.js 类型声明 |
 | @types/uuid | ^10.0.0 | devDependency | uuid 的类型声明 |
-| vitest | ^2.0.0 | devDependency | 测试框架，globals + node 环境 |
+| vitest | ^3.0.0 | devDependency | 测试框架，globals + node 环境 |
 
 **apps/desktop（Electron 桌面端）**：
 
 | 技术 | 版本 | 类型 | 用途 |
 |------|------|------|------|
-| electron | ^31.0.0 | devDependency | 桌面应用壳，主进程运行时 |
-| electron-vite | ^2.0.0 | devDependency | Electron + Vite 构建工具链 |
-| electron-builder | ^25 | devDependency | 打包分发 |
+| electron | ^36.0.0 | devDependency | 桌面应用壳，主进程运行时（Chromium 136 / Node 22.14） |
+| electron-vite | ^3.0.0 | devDependency | Electron + Vite 构建工具链 |
+| electron-builder | ^26 | devDependency | 打包分发 |
 | react | ^19.0.0 | dependency | 渲染层 UI 框架 |
 | react-dom | ^19.0.0 | dependency | React DOM 渲染 |
 | react-router-dom | ^7.0.0 | dependency | 路由（6 个核心页面） |
@@ -129,7 +129,7 @@ FIRE APP 面向**个人使用**，定位为本地优先（local-first）、离�
 | iconv-lite | ^0.7.3 | dependency | CSV 编码处理（GBK 解码，[import-csv-parser.ts](file:///workspace/apps/desktop/src/main/import-csv-parser.ts)） |
 | tailwindcss | ^4.0.0 | devDependency | 原子化 CSS（via @tailwindcss/vite） |
 | @fire-app/shared | workspace:* | dependency | 引用本仓库数据层 |
-| vitest | ^2.0.0 | devDependency | 桌面端组件 / store 测试 |
+| vitest | ^3.0.0 | devDependency | 桌面端组件 / store 测试 |
 
 > 数据层依赖（better-sqlite3 / uuid）集中在 `packages/shared`，桌面端通过 `workspace:*` 引用 `@fire-app/shared`，避免重复声明。
 
@@ -141,7 +141,7 @@ FIRE APP 面向**个人使用**，定位为本地优先（local-first）、离�
 
 ### 2.3 测试框架
 
-测试使用 vitest 2.0。`packages/shared` 与 `apps/desktop` 各有独立的 [vitest.config.ts](file:///workspace/packages/shared/vitest.config.ts)（桌面端配置在 `apps/desktop/vitest.config.ts`）。根 `package.json` 暴露的 pnpm 脚本：
+测试使用 vitest 3.0。`packages/shared` 与 `apps/desktop` 各有独立的 [vitest.config.ts](file:///workspace/packages/shared/vitest.config.ts)（桌面端配置在 `apps/desktop/vitest.config.ts`）。根 `package.json` 暴露的 pnpm 脚本：
 
 | 命令 | 用途 |
 |------|------|
@@ -446,7 +446,7 @@ Electron 桌面端，依赖 `@fire-app/shared`（`workspace:*`）。三层进程
 | `src/renderer/src/` | React 19 渲染层：`pages/`（6 个核心页面 + Onboarding）、`components/`（accounts / transactions / dashboard / net-worth / fire-calculator / layout / base / auxiliary）、`stores/`（Zustand 状态管理）、`data/`（DataAccessPort 抽象 + ipc-data-access 实现）、`router/` |
 | `tests/` | 桌面端测试：组件测试（`.test.tsx`）+ store / constants 测试（`.test.ts`） |
 
-构建配置：`electron.vite.config.ts`（electron-vite 2）、`electron-builder.yml`（打包）、`vitest.config.ts`（jsdom 环境）。
+构建配置：`electron.vite.config.ts`（electron-vite 3）、`electron-builder.yml`（打包）、`vitest.config.ts`（jsdom 环境）。
 
 ### 5.5 `docs/` 文档目录
 

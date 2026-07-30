@@ -14,18 +14,18 @@
 
 ## 1. 概述
 
-本文件是 FIRE APP 设计/规划文档的索引。仓库 `docs/superpowers/` 下共有 50 份设计/规划文档：31 份 spec（设计文档）+ 19 份 plan（实施计划），覆盖 M1–M9 全部里程碑及非里程碑文档（环境搭建 / Code Wiki / 安全 / 同步层 / CI / Docker / 验证流程等）。
+本文件是 FIRE APP 设计/规划文档的索引。仓库 `docs/superpowers/` 下共有 52 份设计/规划文档：32 份 spec（设计文档）+ 20 份 plan（实施计划），覆盖 M1–M9 全部里程碑及非里程碑文档（环境搭建 / Code Wiki / 安全 / 同步层 / CI / Docker / 验证流程 / Electron 36 升级等）。
 
 **核心原则：Wiki 以代码为权威**。本索引仅作导航与摘要，不复述设计文档的完整内容。当设计文档与代码不一致时，以代码为准，差异集中记录在第 4 节"已知问题清单"中。
 
-- 第 2 节：31 份设计文档（spec）清单与摘要（按日期排序，覆盖 M2–M9 里程碑与非里程碑文档）
-- 第 3 节：19 份实施计划（plan）清单与摘要（按日期排序）
+- 第 2 节：32 份设计文档（spec）清单与摘要（按日期排序，覆盖 M2–M9 里程碑与非里程碑文档）
+- 第 3 节：20 份实施计划（plan）清单与摘要（按日期排序）
 - 第 4 节：已知问题清单（来自设计文档审查报告，含 2 个确认错误）
-- 第 5 节：尚未实现的规划（加密同步层、Electron 31→36 升级）
+- 第 5 节：尚未实现的规划（加密同步层）
 
 ---
 
-## 2. 设计文档清单（31 份 spec）
+## 2. 设计文档清单（32 份 spec）
 
 ### 2.1 用户数据模型设计
 
@@ -269,9 +269,15 @@
 - **日期 / 状态**：2026-07-30 / 已批准，待写实施计划
 - **范围 + 关键贡献**：M9 加固完成后的收尾——Phase 1 清理 shared + desktop 死代码（如 P3 移除 getTransactionsByUser 调用链后遗留的 model 函数及测试）；Phase 2 全量重同步 Code Wiki 到 M9 后状态并新增 2 个 desktop 分节，版本 v1.1→v2.0。本文件即驱动当前 Wiki 重同步任务的源 spec。
 
+### 2.32 Electron 31→36 升级设计
+
+- **路径**：[specs/2026-07-30-fire-app-electron-36-upgrade-design.md](file:///workspace/docs/superpowers/specs/2026-07-30-fire-app-electron-36-upgrade-design.md)
+- **日期 / 状态**：2026-07-30 / 已批准，已实现
+- **范围 + 关键贡献**：分层渐进升级（方案 B）——Phase 1 宿主 Node 20→22 LTS + check-env.mjs 动态化消除硬编码版本号；Phase 2 Electron 31→36（Chromium 136 / Node 22.14）+ @electron/rebuild 3.7 + @types/node 22，better-sqlite3 保持 11.x 保守升；Phase 3 构建工具联动（electron-vite 2→3 / vite 5→6 / vitest 2→3 / electron-builder 25→26）。main/preload 零改动（Electron 32-36 breaking 审计确认已显式启用 sandbox/contextIsolation）。PR #1 squash 合并到 main。
+
 ---
 
-## 3. 实现计划清单（19 份 plan）
+## 3. 实现计划清单（20 份 plan）
 
 ### 3.1 数据模型实施计划
 
@@ -405,6 +411,12 @@
 - **日期 / 状态**：2026-07-30 / 进行中
 - **范围 + 关键贡献**：方案 A 先清理后重同步——Phase 1 Grep 逐符号扫描未使用导出，保守保留不确定项；Phase 2 按分节逐文件核对代码差距，8 个旧分节更新 + 2 个新分节（09-desktop-main / 10-renderer），Glob 枚举防漏；本计划驱动当前 Wiki v2.0 重同步任务。
 
+### 3.20 Electron 31→36 升级实施计划
+
+- **路径**：[plans/2026-07-30-fire-app-electron-36-upgrade.md](file:///workspace/docs/superpowers/plans/2026-07-30-fire-app-electron-36-upgrade.md)
+- **日期 / 状态**：2026-07-30 / 已实现
+- **范围 + 关键贡献**：10 个 Task 分 3 Phase——P1（Task 1-3）宿主 Node 22 + check-env.mjs 动态化 + CI；P2（Task 4-6）Electron 36 + better-sqlite3 + @electron/rebuild + breaking 审计；P3（Task 7-9）vite+electron-vite / vitest+jsdom / electron-builder；Task 10 完整 E2E + PR。Subagent-Driven 执行，3 次 CI 全绿（P1 2m59s / P2 3m33s / P3 3m28s），PR #1 squash 合并。
+
 ---
 
 ## 4. 已知问题清单（历史记录）
@@ -444,7 +456,7 @@
 
 ## 5. 尚未实现的规划
 
-前端代码已随桌面 MVP 全量落地（M1–M8，详见 §2/§3 各里程碑条目），Wiki 02-06 文件描述数据层、前端代码位于 `apps/desktop`。本节仅标注尚未实现的两项：加密同步层与 Electron 31→36 升级。
+前端代码已随桌面 MVP 全量落地（M1–M8，详见 §2/§3 各里程碑条目），Wiki 02-06 文件描述数据层、前端代码位于 `apps/desktop`。本节仅标注尚未实现的一项：加密同步层。
 
 ### 5.1 加密同步层（仍规划中）
 
@@ -455,11 +467,11 @@
 | 跨设备同步 | 缺失设计文档规划（阶段 3） | 未实现 |
 | 数据导出/备份 | 数据导出/导入设计 + M8 设计 | ✅ 已实现（M8 里程碑落地：JSON 全量导出/导入 + CSV 单表导出 + CSV 交易导入） |
 
-### 5.2 Electron 31→36 升级（M9 单列后续）
+### 5.2 Electron 31→36 升级（已实现）
 
 | 规划内容 | 设计文档 | 状态 |
 |----------|----------|------|
-| Electron 主框架升级 31→36 | M9 加固里程碑设计（安全维度） | 未实现（M9 设计已单列为后续独立任务，因变更面大需独立 sprint，不并入 M9 加固范围） |
+| Electron 主框架升级 31→36 | [Electron 36 升级设计](file:///workspace/docs/superpowers/specs/2026-07-30-fire-app-electron-36-upgrade-design.md)（§2.32）+ [实施计划](file:///workspace/docs/superpowers/plans/2026-07-30-fire-app-electron-36-upgrade.md)（§3.20） | ✅ 已实现（PR #1 squash 合并到 main，2026-07-30。分层渐进升级：Node 22 + Electron 36 + better-sqlite3 11.x rebuild + 全套构建工具联动。main/preload 零改动，3 次 CI 全绿） |
 
 ---
 

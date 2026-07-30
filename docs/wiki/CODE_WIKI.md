@@ -70,7 +70,7 @@ FIRE APP 是一个基于 **TypeScript + better-sqlite3** 的个人 FIRE（Financ
 | 语言 / 模块系统 | TypeScript ^5.5.0 / ESM（`"type": "module"`，import 带 `.js`） |
 | 数据库驱动 | better-sqlite3 ^11.0.0（同步 API，WAL 模式） |
 | 主键策略 | UUID v4（`uuid` ^10.0.0，支持离线创建） |
-| 测试框架 | vitest ^2.0.0（globals + node 环境，单线程） |
+| 测试框架 | vitest ^3.0.0（globals + node 环境，单线程） |
 | 数据库表数 | 7 张（4 层领域架构） |
 | 索引数 | 9 个（`transactions` 表占 4 个） |
 | 类型定义 | 5 枚举别名 + 7 实体接口 |
@@ -169,7 +169,7 @@ FIRE APP 的全局导览：项目定位（个人 FIRE 财务计算应用）、�
 
 #### 07 — 测试套件（[07-tests.md](07-tests.md)）
 
-vitest 2.0 配置（globals + node + 单线程）。**shared 22 个测试文件 / 181 用例 + desktop 23 个测试文件 / 293 用例（合计 45 文件 / 474 用例）**，与各自 `src/` 目录镜像。代码-测试映射表统计每个测试文件的 describe / it 数与覆盖范围。含内存数据库约定、beforeEach/afterEach 模式、断言风格、集成测试用例（建账→记账→快照→FIRE 计算端到端验证）。
+vitest 3.0 配置（globals + node + 单线程）。**shared 22 个测试文件 / 181 用例 + desktop 23 个测试文件 / 293 用例（合计 45 文件 / 474 用例）**，与各自 `src/` 目录镜像。代码-测试映射表统计每个测试文件的 describe / it 数与覆盖范围。含内存数据库约定、beforeEach/afterEach 模式、断言风格、集成测试用例（建账→记账→快照→FIRE 计算端到端验证）。
 
 #### 08 — 设计文档导航（[08-design-index.md](08-design-index.md)）
 

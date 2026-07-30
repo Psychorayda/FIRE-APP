@@ -8,7 +8,7 @@
 
 ## 1. 测试框架与配置
 
-FIRE APP 的测试套件基于 **vitest 2.0**，覆盖 shared 数据层 / 模型层 / 服务层 / 工具层 / 导入模板层以及 desktop IPC 层 / Renderer 组件层 / Store 层 / E2E 解析层。最新一次扫描（2026-07-30）实测：
+FIRE APP 的测试套件基于 **vitest 3.0**，覆盖 shared 数据层 / 模型层 / 服务层 / 工具层 / 导入模板层以及 desktop IPC 层 / Renderer 组件层 / Store 层 / E2E 解析层。最新一次扫描（2026-07-30）实测：
 - **packages/shared**：22 个测试文件 / 181 个用例
 - **apps/desktop**：23 个测试文件 / 293 个用例
 - **合计**：45 个测试文件 / 474 个用例
