@@ -3,6 +3,7 @@
 
 import { Suspense, useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
+import { ErrorBoundary } from './components/base/ErrorBoundary.js';
 import { router } from './router/index.js';
 import { useAppStore } from './stores/app-store.js';
 
@@ -14,8 +15,10 @@ export default function App() {
   }, [initialize]);
 
   return (
-    <Suspense fallback={<div className="p-8 text-gray-500">加载中...</div>}>
-      <RouterProvider router={router} />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={<div className="p-8 text-gray-500">加载中...</div>}>
+        <RouterProvider router={router} />
+      </Suspense>
+    </ErrorBoundary>
   );
 }
