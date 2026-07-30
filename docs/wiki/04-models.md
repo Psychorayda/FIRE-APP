@@ -1,6 +1,6 @@
 # 04-models.md — 数据模型层
 
-> **最后更新**: 2026-07-29
+> **最后更新**: 2026-07-30
 > **对应代码**: `packages/shared/src/models/`
 > **导航**: [← 返回主页](CODE_WIKI.md) | [上一节](03-types.md) | [下一节](05-services.md)
 
@@ -32,9 +32,10 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 | 2 | account.ts | 8 | 账户 CRUD + 余额查询 + 软删除 |
 | 3 | category.ts | 4 | 分类 CRUD + 种子分类初始化 |
 | 4 | transaction.ts | 2 | 交易查询（仅读操作） |
-| 5 | recurring.ts | 3 | 经常性交易模板 CRUD |
-| 6 | scenario.ts | 4 | FIRE 场景 CRUD |
-| 7 | snapshot.ts | 3 | 净资产快照查询与插入 |
+| 5 | transaction-queries.ts | 3 | 交易分页/最近/月度聚合查询（仅读操作） |
+| 6 | recurring.ts | 3 | 经常性交易模板 CRUD |
+| 7 | scenario.ts | 4 | FIRE 场景 CRUD |
+| 8 | snapshot.ts | 3 | 净资产快照查询与插入 |
 
 ---
 
@@ -310,7 +311,97 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ---
 
-## 6. recurring.ts
+## 6. transaction-queries.ts
+
+源码：[transaction-queries.ts](file:///workspace/packages/shared/src/models/transaction-queries.ts)
+
+**职责**：交易聚合查询——分页、最近 N 条、月度收支聚合（**仅读操作**，筛选/排序/聚合全部下推到 SQL）
+
+**依赖**：`DatabaseType`、`Transaction` 接口
+
+> **特别说明**：本文件与 [transaction.ts](file:///workspace/packages/shared/src/models/transaction.ts) 互补——transaction.ts 仅提供按 ID 的单条查询，本文件提供按用户维度的列表与聚合查询。所有 SQL 均带 `deleted_flag = 0` 过滤，并通过 `LIMIT` / `OFFSET` / `SUM + CASE` 在数据库层完成分页与聚合，避免拉全量到应用层。
+
+### 6.1 输入接口
+
+#### `TransactionPageParams`
+
+| 字段 | 类型 | 可选 | 说明 |
+|------|------|------|------|
+| dateFrom | number | ✓ | 起始日期（毫秒，`transaction_date >= ?`） |
+| dateTo | number | ✓ | 截止日期（毫秒，`transaction_date <= ?`） |
+| type | 'income' \| 'expense' \| 'transfer' \| 'initial_balance' | ✓ | 交易类型过滤（`transaction_type = ?`） |
+| accountId | string | ✓ | 账户 ID 过滤（`account_id = ?`） |
+| limit | number | 否 | 每页条数（SQL `LIMIT`） |
+| offset | number | 否 | 偏移量（SQL `OFFSET`） |
+
+#### `TransactionPage`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| items | Transaction[] | 当前页交易列表 |
+| total | number | 满足筛选条件的总条数（供前端分页器计算页数） |
+
+#### `MonthlyOverview`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| income | number | 月度收入合计（分） |
+| expense | number | 月度支出合计（分） |
+| transfer | number | 月度转账合计（分） |
+
+### 6.2 函数清单
+
+| 函数名 | 签名 | 用途 | 读/写 | 递增 sync_version | 抛错条件 |
+|--------|------|------|-------|------------------|----------|
+| getTransactionsPage | (db, userId, params) => TransactionPage | 分页查询交易（日期/类型/账户过滤 + total 计数） | 读 | — | — |
+| getRecentTransactions | (db, userId, limit) => Transaction[] | 获取最近 N 条交易 | 读 | — | — |
+| getMonthlyOverview | (db, userId, yearMonth) => MonthlyOverview | 月度收支聚合（income/expense/transfer 求和） | 读 | — | — |
+
+### 6.3 关键函数详解
+
+#### `getTransactionsPage`（[transaction-queries.ts:28-40](file:///workspace/packages/shared/src/models/transaction-queries.ts#L28-L40)）
+
+**行为**：动态拼接 WHERE 子句——基础条件 `user_id = ? AND deleted_flag = 0`，再按 `params` 中定义的字段依次追加（`dateFrom` / `dateTo` / `type` / `accountId` 仅在 `!== undefined` 时加入条件）。
+
+**两步查询**：
+1. `SELECT COUNT(*) AS cnt ... WHERE ${where}` 计算 `total`（满足筛选条件的总条数）
+2. `SELECT * ... WHERE ${where} ORDER BY transaction_date DESC, updated_at DESC LIMIT ? OFFSET ?` 取当前页 `items`
+
+**排序**：`transaction_date DESC, updated_at DESC`（同日交易按更新时间倒序）。
+
+**设计动机**：分页与筛选下推到 SQL，避免应用层全量过滤；`total` 单独计数供前端分页器使用。
+
+#### `getRecentTransactions`（[transaction-queries.ts:46-48](file:///workspace/packages/shared/src/models/transaction-queries.ts#L46-L48)）
+
+**SQL**：`SELECT * FROM transactions WHERE user_id = ? AND deleted_flag = 0 ORDER BY transaction_date DESC, updated_at DESC LIMIT ?`
+
+**用途**：首页/仪表盘展示最近交易，SQL `LIMIT` 直接截断，避免拉全量再切片。
+
+#### `getMonthlyOverview`（[transaction-queries.ts:54-67](file:///workspace/packages/shared/src/models/transaction-queries.ts#L54-L67)）
+
+**SQL**（核心聚合）：
+
+```sql
+SELECT
+  COALESCE(SUM(CASE WHEN transaction_type = 'income'   THEN amount ELSE 0 END), 0) AS income,
+  COALESCE(SUM(CASE WHEN transaction_type = 'expense'  THEN amount ELSE 0 END), 0) AS expense,
+  COALESCE(SUM(CASE WHEN transaction_type = 'transfer' THEN amount ELSE 0 END), 0) AS transfer
+FROM transactions
+WHERE user_id = ? AND deleted_flag = 0
+  AND strftime('%Y-%m', transaction_date / 1000, 'unixepoch') = ?
+```
+
+**参数 `yearMonth`**：格式 "YYYY-MM"。`transaction_date` 为毫秒时间戳，需 `/ 1000` 转秒后用 `strftime(..., 'unixepoch')` 提取年月比对。
+
+**空集处理**：`COALESCE(..., 0)` 保证无交易时各字段返回 0；函数末尾另有 `?? { income: 0, expense: 0, transfer: 0 }` 兜底（防御性写法）。
+
+**设计动机**：用 `SUM + CASE` 在数据库层完成按类型聚合，避免拉全量交易到应用层再 reduce。
+
+**关联表**：`transactions`（读）
+
+---
+
+## 7. recurring.ts
 
 源码：[recurring.ts](file:///workspace/packages/shared/src/models/recurring.ts)
 
@@ -318,7 +409,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 **依赖**：`DatabaseType`、`uuidv4`、`nowMs`、`RecurringTransaction` / `TransactionType` / `Frequency` 接口
 
-### 6.1 输入接口
+### 7.1 输入接口
 
 #### `CreateRecurringInput`
 
@@ -339,7 +430,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 | is_active | number | ✓ | 1 | 是否激活 |
 | auto_create | number | ✓ | 1 | 到期时是否自动创建交易 |
 
-### 6.2 函数清单
+### 7.2 函数清单
 
 | 函数名 | 签名 | 用途 | 读/写 | 递增 sync_version | 抛错条件 |
 |--------|------|------|-------|------------------|----------|
@@ -347,24 +438,30 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 | getActiveRecurring | (db, userId) => RecurringTransaction[] | 列出用户所有激活模板 | 读 | — | — |
 | updateRecurring | (db, id, updates) => void | 更新模板（部分字段） | 写 | 是 | `Recurring transaction not found: ${id}` |
 
-### 6.3 关键函数详解
+### 7.3 关键函数详解
 
-#### `updateRecurring`（[recurring.ts:44-48](file:///workspace/packages/shared/src/models/recurring.ts#L44-L48)）
+#### `updateRecurring`（[recurring.ts:44-50](file:///workspace/packages/shared/src/models/recurring.ts#L44-L50)）
 
-**签名**：`(db, id, updates: Partial<RecurringTransaction>) => void`
+**签名**：`(db, id, updates: RecurringUpdateFields) => void`
+
+**类型定义**（[recurring.ts:44](file:///workspace/packages/shared/src/models/recurring.ts#L44)）：
+
+```ts
+export type RecurringUpdateFields = Partial<Pick<RecurringTransaction, 'next_due_date' | 'last_generated_date' | 'is_active'>>;
+```
 
 **业务规则**：
 1. 先查询当前记录，不存在则抛 `Recurring transaction not found: ${id}`
 2. 用 spread 合并：`{ ...current, ...updates, sync_version: current.sync_version + 1, updated_at: nowMs() }`
 3. UPDATE 语句**仅更新 5 个字段**：`next_due_date`、`last_generated_date`、`is_active`、`sync_version`、`updated_at`
 
-**设计动机（关键）**：虽然接受 `Partial<RecurringTransaction>`（任意字段可传入），但 UPDATE 语句**锁定**只能修改这 5 个字段。这是有意为之——service 层（`recurring-service.ts` 的 `processRecurringTransactions`）只用此函数推进到期日和停用模板，**不允许修改 amount / frequency / account_id 等核心字段**。若用户要修改模板内容，应软删除旧模板并创建新模板，避免历史生成交易与当前模板不一致。
+**设计动机（关键）**：M9 D4 将 `updates` 参数类型从 `Partial<RecurringTransaction>` 收紧为 `RecurringUpdateFields`——在**类型层面**即限定只能传入 `next_due_date` / `last_generated_date` / `is_active` 三个字段。UPDATE 语句同样**锁定**只能修改这 5 个字段（3 业务字段 + `sync_version` + `updated_at`）。这是有意为之——service 层（`recurring-service.ts` 的 `processRecurringTransactions`）只用此函数推进到期日和停用模板，**不允许修改 amount / frequency / account_id 等核心字段**。若用户要修改模板内容，应软删除旧模板并创建新模板，避免历史生成交易与当前模板不一致。
 
 **关联表**：`recurring_transactions`
 
 ---
 
-## 7. scenario.ts
+## 8. scenario.ts
 
 源码：[scenario.ts](file:///workspace/packages/shared/src/models/scenario.ts)
 
@@ -372,7 +469,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 **依赖**：`DatabaseType`、`uuidv4`、`nowMs`、`FireScenario` 接口
 
-### 7.1 输入接口
+### 8.1 输入接口
 
 #### `CreateScenarioInput`
 
@@ -394,7 +491,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 | post_retirement_monthly_income | number | ✓ | 0 | 退休后月其他收入（分，如社保养老金） |
 | is_china_market | number | ✓ | 1 | 是否中国市场 |
 
-### 7.2 函数清单
+### 8.2 函数清单
 
 | 函数名 | 签名 | 用途 | 读/写 | 递增 sync_version | 抛错条件 |
 |--------|------|------|-------|------------------|----------|
@@ -403,7 +500,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 | getScenarios | (db, userId) => FireScenario[] | 列出用户所有场景（按 updated_at DESC） | 读 | — | — |
 | updateScenario | (db, id, updates) => FireScenario | 更新场景（部分字段） | 写 | 是 | `Scenario not found: ${id}` |
 
-### 7.3 关键函数详解
+### 8.3 关键函数详解
 
 #### `updateScenario`（[scenario.ts:47-53](file:///workspace/packages/shared/src/models/scenario.ts#L47-L53)）
 
@@ -419,7 +516,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 | 维度 | updateRecurring | updateScenario |
 |------|-----------------|----------------|
-| 接受类型 | `Partial<RecurringTransaction>` | `Partial<FireScenario>` |
+| 接受类型 | `RecurringUpdateFields`（3 字段子集） | `Partial<FireScenario>` |
 | UPDATE 范围 | 仅 5 字段（next_due_date / last_generated_date / is_active / sync_version / updated_at） | 全字段（除 id / user_id） |
 | 设计意图 | 锁定核心字段，service 仅推进到期日 | 允许用户编辑场景参数 |
 | 返回值 | void | FireScenario（更新后对象） |
@@ -428,7 +525,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ---
 
-## 8. snapshot.ts
+## 9. snapshot.ts
 
 源码：[snapshot.ts](file:///workspace/packages/shared/src/models/snapshot.ts)
 
@@ -438,7 +535,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 > **特别说明**：本文件**不含** update 函数，也**不含**快照生成协调逻辑。快照的"按月幂等检查 + 4 类资产聚合 + 插入"流程在 [services/snapshot-service.ts](file:///workspace/packages/shared/src/services/snapshot-service.ts) 的 `generateMonthlySnapshot` 中协调。本文件仅提供基础查询与插入原语。
 
-### 8.1 函数清单
+### 9.1 函数清单
 
 | 函数名 | 签名 | 用途 | 读/写 | 递增 sync_version | 抛错条件 |
 |--------|------|------|-------|------------------|----------|
@@ -446,7 +543,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 | getSnapshotByMonth | (db, userId, yearMonth) => NetWorthSnapshot \| null | 按年月查询快照（幂等检查用） | 读 | — | — |
 | insertSnapshot | (db, snapshot) => void | 插入完整快照对象 | 写 | 否（初始 0，由调用方设置） | UNIQUE 约束冲突 |
 
-### 8.2 关键函数详解
+### 9.2 关键函数详解
 
 #### `getSnapshots`（[snapshot.ts:4-6](file:///workspace/packages/shared/src/models/snapshot.ts#L4-L6)）
 
@@ -474,9 +571,9 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 
 ---
 
-## 9. 跨模块要点速查
+## 10. 跨模块要点速查
 
-### 9.1 写操作与 sync_version 关系
+### 10.1 写操作与 sync_version 关系
 
 | 函数 | 递增 sync_version | 原因 |
 |------|------------------|------|
@@ -485,7 +582,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 | updateAccountBalance | **否** | 余额由交易驱动，非用户编辑 |
 | insertSnapshot | 否（由调用方设置） | 快照是系统生成，非用户编辑 |
 
-### 9.2 软删除过滤策略
+### 10.2 软删除过滤策略
 
 | 函数 | 过滤 deleted_flag | 用途 |
 |------|------------------|------|
@@ -493,7 +590,7 @@ models 层是**数据访问层（DAL）**，每个文件对应一张数据库表
 | getTransactionById | **否** | 历史回溯与同步层使用 |
 | softDeleteAccount / updateRecurring / updateScenario（内部查询） | **否** | 操作前需查到记录（即使已软删除？实际未软删除才操作，但 SQL 不加过滤） |
 
-### 9.3 与 services 层的分工
+### 10.3 与 services 层的分工
 
 | 业务场景 | model 层 | service 层 |
 |----------|----------|-----------|
