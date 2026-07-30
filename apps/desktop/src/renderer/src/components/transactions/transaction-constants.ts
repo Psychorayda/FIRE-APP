@@ -92,23 +92,6 @@ export function computeOverview(txs: Transaction[]): TransactionOverview {
   return result;
 }
 
-/** 前端内存筛选 */
-// In-memory filtering
-export function filterTransactions(txs: Transaction[], filters: TransactionFilters): Transaction[] {
-  return txs.filter((tx) => {
-    if (filters.type && tx.transaction_type !== filters.type) return false;
-    // 账户筛选：双向匹配（account_id 或 to_account_id）
-    // Account filter: bidirectional match (account_id or to_account_id)
-    if (filters.account_id && tx.account_id !== filters.account_id && tx.to_account_id !== filters.account_id) return false;
-    if (filters.category_id && tx.category_id !== filters.category_id) return false;
-    if (filters.dateFrom && tx.transaction_date < new Date(filters.dateFrom).getTime()) return false;
-    // dateTo 含当天：截止到次日 0 点
-    // dateTo inclusive: up to next day 00:00
-    if (filters.dateTo && tx.transaction_date >= new Date(filters.dateTo).getTime() + 86400000) return false;
-    return true;
-  });
-}
-
 /** 排序：date-desc(默认), date-asc, amount-desc, amount-asc */
 // Sort: date-desc (default), date-asc, amount-desc, amount-asc
 export function sortTransactions(txs: Transaction[], sortBy: string): Transaction[] {

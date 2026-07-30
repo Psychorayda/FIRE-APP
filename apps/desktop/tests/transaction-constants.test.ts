@@ -8,7 +8,6 @@ import {
   formatAmount,
   formatDate,
   computeOverview,
-  filterTransactions,
   sortTransactions,
   hasActiveFilters,
   type TransactionFilters,
@@ -159,69 +158,6 @@ describe('computeOverview', () => {
     expect(overview.expense).toBe(3000);
     expect(overview.transfer).toBe(2000);
     expect(overview.balance).toBe(12000);
-  });
-});
-
-describe('filterTransactions', () => {
-  const txs: Transaction[] = [
-    makeTx({ id: 'tx-1', transaction_type: 'income', account_id: 'acc-1', to_account_id: null, category_id: 'cat-1', transaction_date: new Date('2026-07-10').getTime() }),
-    makeTx({ id: 'tx-2', transaction_type: 'expense', account_id: 'acc-2', to_account_id: null, category_id: 'cat-2', transaction_date: new Date('2026-07-15').getTime() }),
-    makeTx({ id: 'tx-3', transaction_type: 'transfer', account_id: 'acc-1', to_account_id: 'acc-2', category_id: null, transaction_date: new Date('2026-07-16').getTime() }),
-    makeTx({ id: 'tx-4', transaction_type: 'expense', account_id: 'acc-3', to_account_id: null, category_id: 'cat-1', transaction_date: new Date('2026-07-17').getTime() }),
-  ];
-
-  it('空筛选 → 返回全部', () => {
-    expect(filterTransactions(txs, EMPTY_FILTERS)).toHaveLength(4);
-  });
-
-  it('type 筛选', () => {
-    const result = filterTransactions(txs, { ...EMPTY_FILTERS, type: 'expense' });
-    expect(result).toHaveLength(2);
-    expect(result.map((t) => t.id)).toEqual(['tx-2', 'tx-4']);
-  });
-
-  it('account 筛选含 transfer 双向匹配', () => {
-    // acc-1 是 tx-1 的 account_id，也是 tx-3 的 account_id（source）
-    const result = filterTransactions(txs, { ...EMPTY_FILTERS, account_id: 'acc-1' });
-    expect(result).toHaveLength(2);
-    expect(result.map((t) => t.id)).toEqual(['tx-1', 'tx-3']);
-  });
-
-  it('account 筛选匹配 to_account_id（transfer 目标）', () => {
-    // acc-2 是 tx-2 的 account_id，也是 tx-3 的 to_account_id（target）
-    const result = filterTransactions(txs, { ...EMPTY_FILTERS, account_id: 'acc-2' });
-    expect(result).toHaveLength(2);
-    expect(result.map((t) => t.id)).toEqual(['tx-2', 'tx-3']);
-  });
-
-  it('category 筛选', () => {
-    const result = filterTransactions(txs, { ...EMPTY_FILTERS, category_id: 'cat-1' });
-    expect(result).toHaveLength(2);
-    expect(result.map((t) => t.id)).toEqual(['tx-1', 'tx-4']);
-  });
-
-  it('dateFrom 筛选', () => {
-    const result = filterTransactions(txs, { ...EMPTY_FILTERS, dateFrom: '2026-07-16' });
-    expect(result).toHaveLength(2);
-    expect(result.map((t) => t.id)).toEqual(['tx-3', 'tx-4']);
-  });
-
-  it('dateTo 筛选含当天', () => {
-    // dateTo=2026-07-16 应包含 7/10, 7/15, 7/16，不含 7/17
-    const result = filterTransactions(txs, { ...EMPTY_FILTERS, dateTo: '2026-07-16' });
-    expect(result).toHaveLength(3);
-    expect(result.map((t) => t.id)).toEqual(['tx-1', 'tx-2', 'tx-3']);
-  });
-
-  it('组合筛选：type + account', () => {
-    const result = filterTransactions(txs, { ...EMPTY_FILTERS, type: 'transfer', account_id: 'acc-1' });
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe('tx-3');
-  });
-
-  it('无匹配', () => {
-    const result = filterTransactions(txs, { ...EMPTY_FILTERS, account_id: 'acc-999' });
-    expect(result).toHaveLength(0);
   });
 });
 

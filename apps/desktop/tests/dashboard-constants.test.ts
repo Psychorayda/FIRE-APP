@@ -3,7 +3,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeNetWorthSummary,
-  filterCurrentMonthTransactions,
   getRecentTransactions,
   formatTrendData,
 } from '@renderer/components/dashboard/dashboard-constants.js';
@@ -111,42 +110,6 @@ describe('computeNetWorthSummary', () => {
     ];
     const result = computeNetWorthSummary(accounts);
     expect(result.netWorth).toBe(-40000);
-  });
-});
-
-describe('filterCurrentMonthTransactions', () => {
-  it('只返回本月交易', () => {
-    const now = new Date();
-    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 15).getTime();
-    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 15).getTime();
-
-    const txs = [
-      makeTx({ id: 't1', transaction_date: thisMonth }),
-      makeTx({ id: 't2', transaction_date: lastMonth }),
-    ];
-    const result = filterCurrentMonthTransactions(txs);
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe('t1');
-  });
-
-  it('空数组返回空', () => {
-    expect(filterCurrentMonthTransactions([])).toEqual([]);
-  });
-
-  it('月初边界包含本月 1 号', () => {
-    const now = new Date();
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-    const txs = [makeTx({ id: 't1', transaction_date: firstOfMonth })];
-    const result = filterCurrentMonthTransactions(txs);
-    expect(result).toHaveLength(1);
-  });
-
-  it('下月 1 号不包含', () => {
-    const now = new Date();
-    const nextMonthFirst = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
-    const txs = [makeTx({ id: 't1', transaction_date: nextMonthFirst })];
-    const result = filterCurrentMonthTransactions(txs);
-    expect(result).toHaveLength(0);
   });
 });
 

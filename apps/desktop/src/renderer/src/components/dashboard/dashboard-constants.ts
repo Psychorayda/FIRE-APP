@@ -48,17 +48,6 @@ export function computeNetWorthSummary(accounts: Account[]): NetWorthSummary {
   return { ...result, totalAssets, netWorth };
 }
 
-/** 筛选本月交易（基于本地时区） */
-// Filter transactions in current month (local timezone)
-export function filterCurrentMonthTransactions(txs: Transaction[]): Transaction[] {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const monthStart = new Date(year, month, 1).getTime();
-  const monthEnd = new Date(year, month + 1, 1).getTime();
-  return txs.filter(tx => tx.transaction_date >= monthStart && tx.transaction_date < monthEnd);
-}
-
 /** 取近期交易（按日期降序，限制数量） */
 // Get recent transactions (date desc, limited count)
 export function getRecentTransactions(txs: Transaction[], limit: number): Transaction[] {
