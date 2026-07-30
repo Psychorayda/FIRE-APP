@@ -71,4 +71,31 @@ describe('clear-service', () => {
     const categories = db.prepare('SELECT * FROM categories WHERE user_id = ? AND deleted_flag = 0').all(userId);
     expect(categories.length).toBe(18);
   });
+
+  it('clearAllTransactions: 软删除交易递增 sync_version + updated_at', async () => {
+    const tx = createTransaction(db, { user_id: userId, account_id: accountId, category_id: null, transaction_type: 'income', amount: 10000, transaction_date: 1000000 });
+    const beforeVersion = tx.sync_version;
+    const beforeUpdatedAt = tx.updated_at;
+    // 确保时间戳不同（nowMs 精度为毫秒）
+    await new Promise(r => setTimeout(r, 10));
+    clearAllTransactions(db, userId);
+    const softDeleted = db.prepare('SELECT sync_version, updated_at, deleted_flag FROM transactions WHERE id = ?').get(tx.id) as { sync_version: number; updated_at: number; deleted_flag: number };
+    expect(softDeleted.sync_version).toBe(beforeVersion + 1);
+    expect(softDeleted.deleted_flag).toBe(1);
+    expect(softDeleted.updated_at).toBeGreaterThanOrEqual(beforeUpdatedAt);
+  });
+
+  it('clearAllTransactions: 账户余额归零递增 sync_version + updated_at', async () => {
+    createTransaction(db, { user_id: userId, account_id: accountId, category_id: null, transaction_type: 'income', amount: 50000, transaction_date: 1000000 });
+    const accBefore = getAccount(db, accountId)!;
+    const beforeVersion = accBefore.sync_version;
+    const beforeUpdatedAt = accBefore.updated_at;
+    // 确保时间戳不同（nowMs 精度为毫秒）
+    await new Promise(r => setTimeout(r, 10));
+    clearAllTransactions(db, userId);
+    const accAfter = getAccount(db, accountId)!;
+    expect(accAfter.current_balance).toBe(0);
+    expect(accAfter.sync_version).toBe(beforeVersion + 1);
+    expect(accAfter.updated_at).toBeGreaterThanOrEqual(beforeUpdatedAt);
+  });
 });

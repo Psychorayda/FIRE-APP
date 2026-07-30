@@ -24,9 +24,9 @@ export function clearAllTransactions(db: DatabaseType, userId: string): ClearRes
       const accountCount = db.prepare('SELECT COUNT(*) as cnt FROM accounts WHERE user_id = ? AND deleted_flag = 0').get(userId) as { cnt: number };
       result.resetAccountCount = accountCount.cnt;
 
-      db.prepare('UPDATE transactions SET deleted_flag = 1, updated_at = ? WHERE user_id = ? AND deleted_flag = 0').run(now, userId);
-      db.prepare('UPDATE recurring_transactions SET deleted_flag = 1, updated_at = ? WHERE user_id = ? AND deleted_flag = 0').run(now, userId);
-      db.prepare('UPDATE accounts SET current_balance = 0, last_updated = ? WHERE user_id = ? AND deleted_flag = 0').run(now, userId);
+      db.prepare('UPDATE transactions SET deleted_flag = 1, sync_version = sync_version + 1, updated_at = ? WHERE user_id = ? AND deleted_flag = 0').run(now, userId);
+      db.prepare('UPDATE recurring_transactions SET deleted_flag = 1, sync_version = sync_version + 1, updated_at = ? WHERE user_id = ? AND deleted_flag = 0').run(now, userId);
+      db.prepare('UPDATE accounts SET current_balance = 0, last_updated = ?, sync_version = sync_version + 1, updated_at = ? WHERE user_id = ? AND deleted_flag = 0').run(now, now, userId);
     })();
     return result;
   } catch (e) {
