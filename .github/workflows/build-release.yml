@@ -38,12 +38,12 @@ jobs:
         run: pnpm install --no-frozen-lockfile
 
       - name: Generate pre-release version
+        id: gen_version
         shell: bash
         run: |
           RUN_NUM=${{ github.run_number }}
           # 0.1.1-dev.N：始终 > 本地 package.json 的 0.1.0，确保 electron-updater 判定为"有更新"
           # （allowDowngrade=false，0.0.0-dev.x < 0.1.0 会导致 UpdateDialog 不弹）
-          # 仅用 run_number 不带日期，避免 tag 含过多点号导致 GitHub release 422
           VERSION="0.1.1-dev.${RUN_NUM}"
           node -e "
             const fs = require('fs');
@@ -53,7 +53,8 @@ jobs:
             fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
           "
           echo "Generated version: ${VERSION}"
-          echo "version=$VERSION" >> $GITHUB_ENV
+          # 用 step output 传递（比 GITHUB_ENV 更可靠，避免 Windows shell 变量展开问题）
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Run tests (gate)
         run: pnpm test:all
@@ -81,8 +82,9 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ env.version }}
+          VERSION: ${{ steps.gen_version.outputs.version }}
         run: |
+          echo "Creating release for version: ${VERSION}"
           # 显式创建 git tag + release（gh CLI 兼容性更好）
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
