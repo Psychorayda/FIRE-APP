@@ -16,6 +16,7 @@ import { clearAllTransactions } from '@shared/services/clear-service.js';
 import { getCategories } from '@shared/models/category.js';
 import { getTemplate, detectTemplate } from '@shared/import-templates/registry.js';
 import { parseCsvFile } from '../import-csv-parser.js';
+import { issuePathToken, assertFileOperationAllowed } from './path-guard.js';
 import type { Database as DatabaseType } from 'better-sqlite3';
 import type { ExportTableName } from '@shared/services/export-service.js';
 import type { ParsedCsvTransaction } from '@shared/import-templates/types.js';
@@ -27,6 +28,7 @@ import type { ParsedCsvTransaction } from '@shared/import-templates/types.js';
 export function registerExportImportHandlers(db: DatabaseType): void {
   // JSON 全量导出 / JSON full export
   registerHandler('export:json', (_db, filePath: string) => {
+    assertFileOperationAllowed(filePath, 'write');
     const userId = getLocalUserId(_db);
     if (!userId) throw new Error('无用户数据');
     const envelope = buildExportEnvelope(_db, userId, app.getVersion());
@@ -37,6 +39,7 @@ export function registerExportImportHandlers(db: DatabaseType): void {
 
   // CSV 单表导出 / CSV single-table export
   registerHandler('export:csv', (_db, filePath: string, tableName: ExportTableName) => {
+    assertFileOperationAllowed(filePath, 'write');
     const userId = getLocalUserId(_db);
     if (!userId) throw new Error('无用户数据');
     const { csvContent, recordCount } = buildCsvExport(_db, tableName, userId);
@@ -47,13 +50,25 @@ export function registerExportImportHandlers(db: DatabaseType): void {
 
   // JSON 导入（LWW 合并） / JSON import (LWW merge)
   registerHandler('import:json', (_db, filePath: string) => {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const envelope = JSON.parse(content);
+    assertFileOperationAllowed(filePath, 'read');
+    let content: string;
+    try {
+      content = fs.readFileSync(filePath, 'utf-8');
+    } catch {
+      throw new Error('文件读取失败，请确认文件存在且可访问');
+    }
+    let envelope;
+    try {
+      envelope = JSON.parse(content);
+    } catch {
+      throw new Error('文件不是有效的 JSON 格式');
+    }
     return importJsonWithLww(_db, envelope);
   }, db);
 
   // CSV 解析（预览阶段，含分类解析） / CSV parse (preview stage, with category resolution)
   registerHandler('import:parseCsv', (_db, templateId: string, filePath: string) => {
+    assertFileOperationAllowed(filePath, 'read');
     const userId = getLocalUserId(_db);
     if (!userId) throw new Error('无用户数据');
     const parsed = parseCsvFile(templateId, filePath);
@@ -68,6 +83,7 @@ export function registerExportImportHandlers(db: DatabaseType): void {
     accountId: string;
     transactions: ParsedCsvTransaction[];
   }) => {
+    assertFileOperationAllowed(params.filePath, 'read');
     const userId = getLocalUserId(_db);
     if (!userId) throw new Error('无用户数据');
     return importCsvTransactions(_db, {
@@ -93,6 +109,7 @@ export function registerExportImportHandlers(db: DatabaseType): void {
 
   // 检测模板 / Detect template from file content
   registerHandler('import:detectTemplate', (_db, filePath: string) => {
+    assertFileOperationAllowed(filePath, 'read');
     const buffer = fs.readFileSync(filePath);
     const utf8Content = buffer.slice(0, 1024).toString('utf-8');
     const gbkContent = iconv.decode(buffer.slice(0, 1024), 'gbk');
@@ -105,6 +122,9 @@ export function registerExportImportHandlers(db: DatabaseType): void {
       defaultPath: path.join(app.getPath('desktop'), params.defaultName),
       filters: [{ name: params.extension.toUpperCase() + ' 文件', extensions: [params.extension] }],
     });
+    if (!result.canceled && result.filePath) {
+      issuePathToken(result.filePath);
+    }
     return { canceled: result.canceled, filePath: result.filePath ?? null };
   });
 
@@ -114,6 +134,9 @@ export function registerExportImportHandlers(db: DatabaseType): void {
       properties: ['openFile'],
       filters: [{ name: '文件', extensions: params.extensions }],
     });
+    if (!result.canceled && result.filePaths[0]) {
+      issuePathToken(result.filePaths[0]);
+    }
     return { canceled: result.canceled, filePath: result.filePaths[0] ?? null };
   });
 }
