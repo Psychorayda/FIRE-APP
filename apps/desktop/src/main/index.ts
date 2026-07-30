@@ -5,8 +5,11 @@ import { join } from 'path';
 import { mkdirSync, existsSync, appendFileSync } from 'fs';
 import { initDatabase, closeAppDatabase } from './db-manager.js';
 import { registerIpcHandlers } from './ipc-handlers.js';
+import { UpdateManager } from './update-manager.js';
+import { registerUpdateHandlers } from './ipc/update-handlers.js';
 
 let mainWindow: BrowserWindow | null = null;
+let updateManager: UpdateManager | null = null;
 
 /**
  * 固定 userData 路径，避免 portable exe 每次解压到不同临时目录导致数据库路径变化
@@ -53,6 +56,11 @@ function createWindow(): void {
       sandbox: true,
     },
   });
+
+  // 初始化自动更新管理器（需要 mainWindow 引用）
+  // Initialize auto-update manager (needs mainWindow reference)
+  updateManager = new UpdateManager(mainWindow);
+  registerUpdateHandlers(updateManager);
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show();
@@ -116,6 +124,10 @@ app.whenReady().then(() => {
   createWindow();
   debugLog('Main window created');
 
+  // 5. 启动自动更新检查（延迟 10s + 24h 轮询）
+  // Start auto-update checking (10s delay + 24h polling)
+  updateManager?.start();
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -138,4 +150,5 @@ app.on('before-quit', () => {
   debugLog('before-quit: closing database');
   closeAppDatabase();
   debugLog('before-quit: database closed');
+  updateManager?.destroy();
 });

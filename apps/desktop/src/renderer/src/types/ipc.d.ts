@@ -21,6 +21,7 @@ import type { ExportTableName } from '@shared/services/export-service.js';
 import type { ImportResult } from '@shared/services/import-service.js';
 import type { ClearResult } from '@shared/services/clear-service.js';
 import type { ParsedCsvTransaction } from '@shared/import-templates/types.js';
+import type { UpdateApi } from '../../../preload/index.js';
 
 export interface DataAccessAPI {
   // 数据库管理 / Database
@@ -121,5 +122,6 @@ export interface DataAccessAPI {
 declare global {
   interface Window {
     dataAccess: DataAccessAPI;
+    update: UpdateApi;
   }
 }

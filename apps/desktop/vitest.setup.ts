@@ -94,4 +94,13 @@ if (typeof window !== 'undefined') {
     showOpenDialog: fn(),
   },
 } as any;
+
+  window.update = {
+    check: fn(),
+    download: fn(),
+    install: fn(),
+    skipVersion: fn(),
+    getStatus: fn(),
+    onStatusChanged: fn().mockReturnValue(() => {}),
+  } as any;
 }
