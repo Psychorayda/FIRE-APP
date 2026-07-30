@@ -1,6 +1,6 @@
 # 07-tests.md — 测试套件
 
-> **最后更新**: 2026-07-29
+> **最后更新**: 2026-07-30
 > **对应代码**: `packages/shared/tests/`
 > **导航**: [← 返回主页](CODE_WIKI.md) | [上一节](06-utils.md) | [下一节](08-design-index.md)
 
@@ -8,7 +8,10 @@
 
 ## 1. 测试框架与配置
 
-FIRE APP 的测试套件基于 **vitest 2.0**，覆盖数据层、模型层、服务层、工具层的单元测试以及一条端到端集成测试，共 **13 个测试文件**（12 单元 + 1 集成）。
+FIRE APP 的测试套件基于 **vitest 2.0**，覆盖 shared 数据层 / 模型层 / 服务层 / 工具层 / 导入模板层以及 desktop IPC 层 / Renderer 组件层 / Store 层 / E2E 解析层。最新一次扫描（2026-07-30）实测：
+- **packages/shared**：22 个测试文件 / 181 个用例
+- **apps/desktop**：23 个测试文件 / 293 个用例
+- **合计**：45 个测试文件 / 474 个用例
 
 ### 1.1 配置文件
 
@@ -85,7 +88,7 @@ packages/shared/tests/
 
 ## 3. 代码-测试映射表
 
-下表统计自 2026-07-15 实际扫描的 13 个测试文件。每个测试文件均包含 1 个 `describe` 块（描述被测模块），`it` 数量为该文件内独立测试用例数。
+下表统计自 2026-07-30 实际扫描的 22 个 shared 测试文件。每个测试文件均包含 1 个 `describe` 块（描述被测模块），`it` 数量为该文件内独立测试用例数。
 
 | 源文件 | 测试文件 | describe 数 | it 数 | 覆盖范围 |
 |--------|----------|------------|-------|----------|
@@ -103,11 +106,34 @@ packages/shared/tests/
 | `src/utils/time.ts` | `tests/utils/time.test.ts` | 1 | 7 | nowMs、toYearMonth、addMonths（含跨年）、monthsBetween（含跨年） |
 | —（端到端） | `tests/integration/workflow.test.ts` | 1 | 3 | 建账→记账→快照→FIRE 计算、经常性交易补生成、多月快照降序 |
 
-**汇总**：13 个测试文件，共 13 个 `describe` 块，97 个 `it` 测试用例。
+**汇总**：shared 22 个测试文件，181 个 `it` 测试用例。
+
+**新增模块测试映射**（Phase 1 重同步补录）：
+
+| 源文件 | 测试文件 |
+|--------|----------|
+| [column-whitelist.ts](file:///workspace/packages/shared/src/services/column-whitelist.ts) | [column-whitelist.test.ts](file:///workspace/packages/shared/tests/services/column-whitelist.test.ts) |
+| [clear-service.ts](file:///workspace/packages/shared/src/services/clear-service.ts) | [clear-service.test.ts](file:///workspace/packages/shared/tests/services/clear-service.test.ts) |
+| [export-service.ts](file:///workspace/packages/shared/src/services/export-service.ts) | [export-service.test.ts](file:///workspace/packages/shared/tests/services/export-service.test.ts) |
+| [import-service.ts](file:///workspace/packages/shared/src/services/import-service.ts) | [import-service.test.ts](file:///workspace/packages/shared/tests/services/import-service.test.ts) |
+| [transaction-queries.ts](file:///workspace/packages/shared/src/models/transaction-queries.ts) | [transaction-queries.test.ts](file:///workspace/packages/shared/tests/models/transaction-queries.test.ts) |
+| [schema.ts](file:///workspace/packages/shared/src/db/schema.ts)（CHECK 约束 + 索引） | [schema.test.ts](file:///workspace/packages/shared/tests/db/schema.test.ts) |
+| [import-templates/](file:///workspace/packages/shared/src/import-templates)（registry / placeholder-resolver / keyword-rules / templates） | [import-templates/](file:///workspace/packages/shared/tests/import-templates)（4 个测试文件） |
+| [path-guard.ts](file:///workspace/apps/desktop/src/main/ipc/path-guard.ts) | [path-guard.test.ts](file:///workspace/apps/desktop/tests/path-guard.test.ts) |
+| [schemas.ts](file:///workspace/apps/desktop/src/main/ipc/schemas.ts) | [ipc-schemas.test.ts](file:///workspace/apps/desktop/tests/ipc-schemas.test.ts) |
+| [ErrorBoundary.tsx](file:///workspace/apps/desktop/src/renderer/src/components/base/ErrorBoundary.tsx) | [error-boundary.test.tsx](file:///workspace/apps/desktop/tests/error-boundary.test.tsx) |
+| [data-management/](file:///workspace/apps/desktop/src/renderer/src/components/data-management)（ClearTransactions / CSV Import Wizard / DataManagementPanel） | [data-management-panel.test.tsx](file:///workspace/apps/desktop/tests/data-management-panel.test.tsx) / [csv-import-wizard.test.tsx](file:///workspace/apps/desktop/tests/csv-import-wizard.test.tsx) / [clear-transactions.test.tsx](file:///workspace/apps/desktop/tests/clear-transactions.test.tsx) |
+| [Table.tsx](file:///workspace/apps/desktop/src/renderer/src/components/base/Table.tsx)（虚拟化滚动） | [TransactionListTable.test.tsx](file:///workspace/apps/desktop/tests/TransactionListTable.test.tsx) |
+| [FireCalculatorPage.tsx](file:///workspace/apps/desktop/src/renderer/src/pages/FireCalculatorPage.tsx)（toast 反馈） | [fire-calc-components.test.tsx](file:///workspace/apps/desktop/tests/fire-calc-components.test.tsx) |
+| [transaction-store.ts](file:///workspace/apps/desktop/src/renderer/src/stores/transaction-store.ts)（分页） | [TransactionsPage.test.tsx](file:///workspace/apps/desktop/tests/TransactionsPage.test.tsx) |
+| desktop CSV 解析（端到端） | [csv-parser-e2e.test.ts](file:///workspace/apps/desktop/tests/csv-parser-e2e.test.ts) |
+
+**汇总**：desktop 23 个测试文件，293 个 `it` 测试用例。
 
 **未覆盖源文件的说明**：
 - `src/models/transaction.ts`、`src/models/recurring.ts`、`src/models/scenario.ts`、`src/models/snapshot.ts` 无独立测试文件，其逻辑通过对应的 service 测试间接覆盖（如 `transaction-service.test.ts` 测试交易创建/编辑/删除，间接验证 `transaction.ts` 的查询函数）。
 - `src/types/index.ts` 为纯类型文件，无运行时代码，不需测试。
+- 已删除测试说明：Phase 1 删除了 `getTransactionsByUser`（旧 `transaction.test.ts` 整文件移除）、`filterTransactions`、`filterCurrentMonthTransactions` 等死代码及其测试，本次重同步不再引用。
 
 ---
 
@@ -162,7 +188,7 @@ afterEach(() => {
 
 - **better-sqlite3 是同步 API**：所有数据库操作在调用线程上同步执行，多线程并发访问同一连接会导致段错误
 - **测试隔离性**：单线程确保每个测试文件串行执行，避免内存数据库实例之间的资源竞争
-- **代价**：测试总耗时为各文件耗时之和（无法并行加速），但本项目测试规模小（97 个用例），单线程总耗时仍在秒级
+- **代价**：测试总耗时为各文件耗时之和（无法并行加速），但本项目测试规模可控（shared 181 用例 + desktop 293 用例 = 474 用例），单线程总耗时仍在秒级
 
 ### 4.4 断言风格
 
