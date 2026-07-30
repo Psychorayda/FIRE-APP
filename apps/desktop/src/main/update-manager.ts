@@ -2,9 +2,14 @@
 // 封装 electron-updater 的 autoUpdater，提供统一的 check/download/install/skipVersion API
 
 import { app, BrowserWindow } from 'electron';
-import { autoUpdater, UpdateInfo } from 'electron-updater';
+import electronUpdater from 'electron-updater';
+import type { UpdateInfo } from 'electron-updater';
 import { join } from 'path';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+
+// electron-updater 是 CommonJS 模块，打包后 ESM 加载器不支持命名导入
+// 需用默认导入 + 解构（dev 模式下 bundler 自动处理，打包后需显式写）
+const { autoUpdater } = electronUpdater;
 
 // 更新状态阶段 / Update status phase
 export type UpdatePhase =
