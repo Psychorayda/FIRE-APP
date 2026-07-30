@@ -116,4 +116,34 @@ describe('recurring service', () => {
     expect(source!.current_balance).toBe(95000);
     expect(target!.current_balance).toBe(5000);
   });
+
+  it('processRecurringTransactions: 重复调用不重复生成（幂等）', () => {
+    const pastDate = nowMs() - 100000;
+    createRecurring(db, {
+      user_id: userId, account_id: accountId, category_id: categoryId,
+      transaction_type: 'income', amount: 10000, frequency: 'monthly',
+      start_date: pastDate, next_due_date: pastDate,
+    });
+    const firstRun = processRecurringTransactions(db, userId);
+    expect(firstRun).toHaveLength(1);
+    // 再次调用：next_due_date 已推进到未来，不应生成新交易
+    const secondRun = processRecurringTransactions(db, userId);
+    expect(secondRun).toHaveLength(0);
+    const allTx = db.prepare('SELECT * FROM transactions WHERE recurring_id IS NOT NULL').all();
+    expect(allTx.length).toBe(1);
+  });
+
+  it('processRecurringTransactions: 同月同 recurring_id 即使 next_due_date 未推进也不重复', () => {
+    const pastDate = nowMs() - 100000;
+    const tmpl = createRecurring(db, {
+      user_id: userId, account_id: accountId, category_id: categoryId,
+      transaction_type: 'income', amount: 10000, frequency: 'monthly',
+      start_date: pastDate, next_due_date: pastDate,
+    });
+    processRecurringTransactions(db, userId);
+    // 模拟崩溃：手动把 next_due_date 改回过去（模拟未推进）
+    db.prepare('UPDATE recurring_transactions SET next_due_date = ? WHERE id = ?').run(pastDate, tmpl.id);
+    const secondRun = processRecurringTransactions(db, userId);
+    expect(secondRun).toHaveLength(0); // 幂等：已存在同 recurring_id+date 的交易
+  });
 });
