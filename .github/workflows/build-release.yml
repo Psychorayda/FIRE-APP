@@ -34,7 +34,9 @@ jobs:
         run: |
           DATE=$(date -u +%Y%m%d)
           RUN_NUM=${{ github.run_number }}
-          VERSION="0.0.0-dev.${DATE}.${RUN_NUM}"
+          # 0.1.1-dev.x：始终 > 本地 package.json 的 0.1.0，确保 electron-updater 判定为"有更新"
+          # （allowDowngrade=false，0.0.0-dev.x < 0.1.0 会导致 UpdateDialog 不弹）
+          VERSION="0.1.1-dev.${DATE}.${RUN_NUM}"
           node -e "
             const fs = require('fs');
             const p = 'apps/desktop/package.json';
