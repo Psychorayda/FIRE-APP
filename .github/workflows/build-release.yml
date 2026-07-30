@@ -26,6 +26,8 @@ jobs:
         run: "git config --global url.\"https://github.com/\".insteadOf git@github.com:"
 
       - name: Install dependencies
+        # --no-frozen-lockfile: 升级阶段 lockfile 未同步更新，临时允许 CI 解析新版本
+        # 合并后需本地 pnpm install 更新 pnpm-lock.yaml 并恢复 --frozen-lockfile
         run: pnpm install --no-frozen-lockfile
 
       - name: Run tests (gate)
