@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '../stores/app-store.js';
 import { useScenarioStore } from '../stores/scenario-store.js';
+import { useToastStore } from '../stores/toast-store.js';
 import { dataAccess } from '../data/data-access.js';
 import { createDefaultScenarioInput } from '../components/fire-calculator/fire-calc-constants.js';
 import { FireIntro } from '../components/fire-calculator/FireIntro.js';
@@ -29,6 +30,8 @@ export function FireCalculatorPage() {
   const updateScenario = useScenarioStore((s) => s.updateScenario);
   const selectScenario = useScenarioStore((s) => s.selectScenario);
   const runProjection = useScenarioStore((s) => s.runProjection);
+  const showError = useToastStore((s) => s.showError);
+  const showSuccess = useToastStore((s) => s.showSuccess);
   const [investableBalance, setInvestableBalance] = useState<number | null>(null);
 
   useEffect(() => {
@@ -36,6 +39,12 @@ export function FireCalculatorPage() {
       void fetchScenarios(currentUser.id);
     }
   }, [currentUser, fetchScenarios]);
+
+  // 监听 scenario-store error，失败时弹 toast
+  // Monitor scenario-store error, show toast on failure
+  useEffect(() => {
+    if (error) showError(`操作失败: ${error}`);
+  }, [error, showError]);
 
   const currentScenario = scenarios.find((s) => s.id === currentScenarioId);
 
@@ -65,12 +74,15 @@ export function FireCalculatorPage() {
   if (scenarios.length === 0) {
     return (
       <FireIntro
-        onCreate={() =>
-          createScenario(
+        onCreate={async () => {
+          await createScenario(
             createDefaultScenarioInput(currentUser!, '我的 FIRE 计划'),
             currentUser!.id
-          )
-        }
+          );
+          if (!useScenarioStore.getState().error) {
+            showSuccess('场景已创建');
+          }
+        }}
       />
     );
   }
@@ -81,12 +93,15 @@ export function FireCalculatorPage() {
         scenarios={scenarios}
         currentId={currentScenario!.id}
         onSelect={selectScenario}
-        onCreate={() =>
-          createScenario(
+        onCreate={async () => {
+          await createScenario(
             createDefaultScenarioInput(currentUser!, '新场景'),
             currentUser!.id
-          )
-        }
+          );
+          if (!useScenarioStore.getState().error) {
+            showSuccess('场景已创建');
+          }
+        }}
       />
       <div className="flex-1 flex flex-col overflow-auto">
         <div className="p-8 space-y-6">
@@ -100,10 +115,13 @@ export function FireCalculatorPage() {
 
           <ScenarioForm
             scenario={currentScenario!}
-            onSave={(updates) => {
+            onSave={async (updates) => {
               const updated = { ...currentScenario!, ...updates };
-              updateScenario(currentScenario!.id, updates, currentUser!.id);
+              await updateScenario(currentScenario!.id, updates, currentUser!.id);
               void runProjection(updated);
+              if (!useScenarioStore.getState().error) {
+                showSuccess('场景已保存');
+              }
             }}
             investableBalance={investableBalance}
           />

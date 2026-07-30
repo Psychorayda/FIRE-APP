@@ -61,12 +61,13 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
   },
 
   updateScenario: async (id, updates, userId) => {
-    // 乐观更新本地（立即反映 UI）
-    // Optimistic local update (immediate UI reflect)
+    // 乐观更新本地（立即反映 UI）+ 清除上一次 error
+    // Optimistic local update (immediate UI reflect) + clear previous error
     set((state) => ({
       scenarios: state.scenarios.map((s) =>
         s.id === id ? { ...s, ...updates } : s
       ),
+      error: null,
     }));
 
     // 直接持久化（手动保存，不再 debounce）

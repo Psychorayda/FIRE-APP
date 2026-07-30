@@ -353,6 +353,7 @@ describe('ProjectionChart', () => {
 import { FireCalculatorPage } from '@renderer/pages/FireCalculatorPage.js';
 import { useAppStore } from '@renderer/stores/app-store.js';
 import { useScenarioStore } from '@renderer/stores/scenario-store.js';
+import { useToastStore } from '@renderer/stores/toast-store.js';
 import type { User } from '@shared/types/index.js';
 
 function makeUser(overrides: Partial<User>): User {
@@ -379,6 +380,7 @@ describe('FireCalculatorPage 集成', () => {
     // 重置 stores
     useAppStore.getState().clearError();
     useScenarioStore.getState().clear();
+    useToastStore.getState().clear();
     // 默认 mock
     (window.dataAccess.scenario.list as any).mockResolvedValue([]);
     (window.dataAccess.scenario.create as any).mockResolvedValue(undefined);
@@ -534,5 +536,67 @@ describe('FireCalculatorPage 集成', () => {
     await screen.findByText('场景详情');
     await new Promise((r) => setTimeout(r, 50));
     expect(window.dataAccess.account.investableBalance).toHaveBeenCalledWith('user-1');
+  });
+
+  it('createScenario 成功显示成功 toast', async () => {
+    (window.dataAccess.scenario.list as any)
+      .mockResolvedValueOnce([]) // 初始 fetch
+      .mockResolvedValueOnce([makeScenario({ id: 's-new', name: '我的 FIRE 计划' })]); // 创建后
+    useAppStore.setState({ currentUser: makeUser({}) as any });
+
+    render(<FireCalculatorPage />);
+
+    const btn = await screen.findByText('创建第一个场景');
+    fireEvent.click(btn);
+
+    // 等 createScenario 完成后页面切换到场景详情
+    await screen.findByText('场景详情');
+    // 验证成功 toast 已入栈
+    const toasts = useToastStore.getState().toasts;
+    expect(toasts.some((t) => t.type === 'success' && t.message === '场景已创建')).toBe(true);
+  });
+
+  it('updateScenario 成功显示成功 toast', async () => {
+    const scenarios = [makeScenario({ id: 's1', name: '标准' })];
+    (window.dataAccess.scenario.list as any).mockResolvedValue(scenarios);
+    useAppStore.setState({ currentUser: makeUser({}) as any });
+
+    render(<FireCalculatorPage />);
+    await screen.findByText('场景详情');
+
+    // 编辑并保存
+    fireEvent.click(screen.getByText('编辑'));
+    const savingsInput = screen.getByLabelText('每月储蓄') as HTMLInputElement;
+    fireEvent.change(savingsInput, { target: { value: '5000' } });
+    fireEvent.click(screen.getByText('保存'));
+
+    // 等 updateScenario 完成
+    await new Promise((r) => setTimeout(r, 50));
+    const toasts = useToastStore.getState().toasts;
+    expect(toasts.some((t) => t.type === 'success' && t.message === '场景已保存')).toBe(true);
+  });
+
+  it('updateScenario 失败显示错误 toast', async () => {
+    const scenarios = [makeScenario({ id: 's1', name: '标准' })];
+    (window.dataAccess.scenario.list as any).mockResolvedValue(scenarios);
+    (window.dataAccess.scenario.update as any).mockRejectedValue(new Error('保存失败'));
+    useAppStore.setState({ currentUser: makeUser({}) as any });
+
+    render(<FireCalculatorPage />);
+    await screen.findByText('场景详情');
+
+    // 编辑并保存（会失败）
+    fireEvent.click(screen.getByText('编辑'));
+    const savingsInput = screen.getByLabelText('每月储蓄') as HTMLInputElement;
+    fireEvent.change(savingsInput, { target: { value: '5000' } });
+    fireEvent.click(screen.getByText('保存'));
+
+    // 等 updateScenario 失败 + error toast 入栈
+    await new Promise((r) => setTimeout(r, 50));
+    const toasts = useToastStore.getState().toasts;
+    expect(toasts.some((t) => t.type === 'error' && t.message.includes('操作失败'))).toBe(true);
+    expect(toasts.some((t) => t.message.includes('保存失败'))).toBe(true);
+    // 失败时不应显示成功 toast
+    expect(toasts.some((t) => t.type === 'success')).toBe(false);
   });
 });
