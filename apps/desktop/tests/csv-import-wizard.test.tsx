@@ -4,14 +4,25 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CsvImportWizard } from '@renderer/components/data-management/CsvImportWizard.js';
 import { useAccountStore } from '@renderer/stores/account-store.js';
+import { useTransactionStore } from '@renderer/stores/transaction-store.js';
+import { useAppStore } from '@renderer/stores/app-store.js';
 import { useCategoryStore } from '@renderer/stores/category-store.js';
-import type { Account, Category } from '@shared/types/index.js';
+import type { Account, Category, User } from '@shared/types/index.js';
 
 function makeAccount(overrides: Partial<Account> = {}): Account {
   return {
     id: 'acc-1', name: '招行储蓄卡', asset_class: 'liquid', account_type: 'checking',
     current_balance: 100000, user_id: 'u1', last_updated: 0, display_order: 0,
     note: null, sync_version: 0, updated_at: 0, deleted_flag: 0, ...overrides,
+  };
+}
+
+function makeUser(overrides: Partial<User> = {}): User {
+  return {
+    id: 'u1', display_name: '测试用户', base_currency: 'CNY', is_china_market: 1,
+    default_withdrawal_rate: 0.04, default_expected_return: 0.07, default_inflation_rate: 0.03,
+    encryption_key_hash: null, last_sync_at: null, sync_version: 0, updated_at: 0,
+    deleted_flag: 0, ...overrides,
   };
 }
 
@@ -61,7 +72,11 @@ async function walkToStep3() {
 describe('CsvImportWizard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useAccountStore.setState({ accounts: mockAccounts, loading: false, error: null });
+    // 提供当前用户 + 把 store load 方法替换为 spy，便于断言导入后刷新调用
+    // Provide current user + replace store load methods with spies to assert refresh after import
+    useAppStore.setState({ currentUser: makeUser() });
+    useAccountStore.setState({ accounts: mockAccounts, loading: false, error: null, fetchAccounts: vi.fn() });
+    useTransactionStore.setState({ fetchRecentTransactions: vi.fn(), pagedTransactions: [], recentTransactions: [], total: 0, loading: false, error: null });
     useCategoryStore.setState({ categories: mockCategories, loading: false, error: null });
     (window.dataAccess.exportImport.parseCsv as any).mockResolvedValue(mockParsedTransactions);
     (window.dataAccess.exportImport.showOpenDialog as any).mockResolvedValue({ canceled: false, filePath: '/tmp/test.csv' });
@@ -103,13 +118,17 @@ describe('CsvImportWizard', () => {
     expect(screen.getByText(/余额变化/)).toBeInTheDocument();
   });
 
-  it('Step 5 完成页显示导入统计', async () => {
+  it('Step 5 完成页显示导入统计并刷新 stores', async () => {
     await walkToStep3();
     fireEvent.click(screen.getByText('下一步'));
     // 标题与按钮均含“确认导入”，用 role 精确定位按钮
     fireEvent.click(screen.getByRole('button', { name: '确认导入' }));
     await waitFor(() => {
       expect(window.dataAccess.exportImport.importCsvTransactions).toHaveBeenCalled();
+      // 导入成功后刷新 transaction-store 和 account-store
+      // Refresh transaction-store and account-store after successful import
+      expect(useTransactionStore.getState().fetchRecentTransactions).toHaveBeenCalledWith('u1', 10);
+      expect(useAccountStore.getState().fetchAccounts).toHaveBeenCalledWith('u1');
     });
     // 结果页用“成功插入”标签 + “{n} 条”计数两个 span 呈现
     expect(screen.getByText('成功插入')).toBeInTheDocument();

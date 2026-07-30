@@ -5,6 +5,9 @@ import { useState } from 'react';
 import { Button } from '@renderer/components/base/Button.js';
 import { Select } from '@renderer/components/base/Select.js';
 import { useToastStore } from '@renderer/stores/toast-store.js';
+import { useAppStore } from '@renderer/stores/app-store.js';
+import { useTransactionStore } from '@renderer/stores/transaction-store.js';
+import { useAccountStore } from '@renderer/stores/account-store.js';
 import { ClearTransactionsDialog } from './ClearTransactionsDialog.js';
 import { CsvImportWizard } from './CsvImportWizard.js';
 
@@ -27,34 +30,70 @@ function timestamp(): string {
 export function DataManagementPanel() {
   const showSuccess = useToastStore((s) => s.showSuccess);
   const showError = useToastStore((s) => s.showError);
+  const currentUser = useAppStore((s) => s.currentUser);
+  const fetchRecentTransactions = useTransactionStore((s) => s.fetchRecentTransactions);
+  const fetchAccounts = useAccountStore((s) => s.fetchAccounts);
   const [csvWizardOpen, setCsvWizardOpen] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [selectedTable, setSelectedTable] = useState('transactions');
+  const [exportingJson, setExportingJson] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [importingJson, setImportingJson] = useState(false);
+
+  // 导入/清空会改变交易与账户数据，刷新相关 store 让其他页面看到最新值
+  // Import/clear mutates transactions & accounts; refresh stores so other pages see fresh data
+  const refreshStoresAfterDataChange = () => {
+    if (!currentUser?.id) return;
+    fetchRecentTransactions(currentUser.id, 10);
+    fetchAccounts(currentUser.id);
+  };
 
   const handleExportJson = async () => {
-    const dialogResult = await window.dataAccess.exportImport.showSaveDialog(`fire-app-export-${timestamp()}.json`, 'json');
-    if (dialogResult.canceled || !dialogResult.filePath) return;
-    const result = await window.dataAccess.exportImport.exportJson(dialogResult.filePath);
-    if (result.success) showSuccess(`已导出 ${result.recordCount} 条记录`);
-    else showError('导出失败');
+    setExportingJson(true);
+    try {
+      const dialogResult = await window.dataAccess.exportImport.showSaveDialog(`fire-app-export-${timestamp()}.json`, 'json');
+      if (dialogResult.canceled || !dialogResult.filePath) return;
+      const result = await window.dataAccess.exportImport.exportJson(dialogResult.filePath);
+      if (result.success) showSuccess(`已导出 ${result.recordCount} 条记录`);
+      else showError('导出失败');
+    } catch (e) {
+      showError(`导出失败: ${(e as Error).message}`);
+    } finally {
+      setExportingJson(false);
+    }
   };
 
   const handleExportCsv = async () => {
-    const dialogResult = await window.dataAccess.exportImport.showSaveDialog(`fire-app-${selectedTable}-${timestamp()}.csv`, 'csv');
-    if (dialogResult.canceled || !dialogResult.filePath) return;
-    const result = await window.dataAccess.exportImport.exportCsv(dialogResult.filePath, selectedTable as any);
-    if (result.success) showSuccess(`已导出 ${result.recordCount} 条记录`);
-    else showError('导出失败');
+    setExportingCsv(true);
+    try {
+      const dialogResult = await window.dataAccess.exportImport.showSaveDialog(`fire-app-${selectedTable}-${timestamp()}.csv`, 'csv');
+      if (dialogResult.canceled || !dialogResult.filePath) return;
+      const result = await window.dataAccess.exportImport.exportCsv(dialogResult.filePath, selectedTable as any);
+      if (result.success) showSuccess(`已导出 ${result.recordCount} 条记录`);
+      else showError('导出失败');
+    } catch (e) {
+      showError(`导出失败: ${(e as Error).message}`);
+    } finally {
+      setExportingCsv(false);
+    }
   };
 
   const handleImportJson = async () => {
-    const dialogResult = await window.dataAccess.exportImport.showOpenDialog(['json']);
-    if (dialogResult.canceled || !dialogResult.filePath) return;
+    setImportingJson(true);
     try {
+      const dialogResult = await window.dataAccess.exportImport.showOpenDialog(['json']);
+      if (dialogResult.canceled || !dialogResult.filePath) return;
       const result = await window.dataAccess.exportImport.importJson(dialogResult.filePath);
-      showSuccess(`导入完成：新增 ${result.inserted}，更新 ${result.updated}，跳过 ${result.skipped}`);
+      if (result.success) {
+        showSuccess(`导入完成：新增 ${result.inserted}，更新 ${result.updated}，跳过 ${result.skipped}`);
+        refreshStoresAfterDataChange();
+      } else {
+        showError('导入失败');
+      }
     } catch (e) {
-      showError((e as Error).message);
+      showError(`导入失败: ${(e as Error).message}`);
+    } finally {
+      setImportingJson(false);
     }
   };
 
@@ -66,8 +105,12 @@ export function DataManagementPanel() {
         <h3 className="text-base font-semibold text-gray-900 mb-3">备份与恢复</h3>
         <p className="text-sm text-gray-600 mb-4">JSON 全量备份用于跨设备迁移和完整数据恢复</p>
         <div className="flex gap-3">
-          <Button variant="primary" size="md" onClick={handleExportJson}>导出 JSON 备份</Button>
-          <Button variant="secondary" size="md" onClick={handleImportJson}>导入 JSON 备份</Button>
+          <Button variant="primary" size="md" onClick={handleExportJson} loading={exportingJson}>
+            {exportingJson ? '导出中...' : '导出 JSON 备份'}
+          </Button>
+          <Button variant="secondary" size="md" onClick={handleImportJson} loading={importingJson}>
+            {importingJson ? '导入中...' : '导入 JSON 备份'}
+          </Button>
         </div>
       </div>
 
@@ -83,7 +126,9 @@ export function DataManagementPanel() {
               onChange={(v) => setSelectedTable(v)}
             />
           </div>
-          <Button variant="primary" size="md" onClick={handleExportCsv}>导出 CSV</Button>
+          <Button variant="primary" size="md" onClick={handleExportCsv} loading={exportingCsv}>
+            {exportingCsv ? '导出中...' : '导出 CSV'}
+          </Button>
         </div>
       </div>
 
@@ -101,7 +146,7 @@ export function DataManagementPanel() {
         <ClearTransactionsDialog
           open={clearDialogOpen}
           onClose={() => setClearDialogOpen(false)}
-          onCleared={() => { /* 由 app-store 处理刷新 */ }}
+          onCleared={refreshStoresAfterDataChange}
         />
       </div>
     </div>

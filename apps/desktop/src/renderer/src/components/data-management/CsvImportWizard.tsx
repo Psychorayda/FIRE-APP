@@ -9,6 +9,8 @@ import { PreviewEditStep } from './PreviewEditStep.js';
 import { ConfirmImportStep } from './ConfirmImportStep.js';
 import { ImportResultStep } from './ImportResultStep.js';
 import { useAccountStore } from '@renderer/stores/account-store.js';
+import { useTransactionStore } from '@renderer/stores/transaction-store.js';
+import { useAppStore } from '@renderer/stores/app-store.js';
 import { useToastStore } from '@renderer/stores/toast-store.js';
 import type { ParsedCsvTransaction } from '@shared/import-templates/types.js';
 
@@ -28,7 +30,11 @@ export function CsvImportWizard({ onClose }: CsvImportWizardProps) {
   const [selectedTempIds, setSelectedTempIds] = useState<Set<string>>(new Set());
   const [result, setResult] = useState<{ inserted: number; skipped: number; errors: string[] } | null>(null);
   const accounts = useAccountStore((s) => s.accounts);
+  const fetchAccounts = useAccountStore((s) => s.fetchAccounts);
+  const fetchRecentTransactions = useTransactionStore((s) => s.fetchRecentTransactions);
+  const currentUser = useAppStore((s) => s.currentUser);
   const showError = useToastStore((s) => s.showError);
+  const showSuccess = useToastStore((s) => s.showSuccess);
 
   const targetAccount = accounts.find(a => a.id === accountId);
   const selectedTxs = transactions.filter(t => selectedTempIds.has(t.tempId));
@@ -59,6 +65,15 @@ export function CsvImportWizard({ onClose }: CsvImportWizardProps) {
       });
       setResult({ inserted: importResult.inserted, skipped: importResult.skipped, errors: importResult.errors });
       setStep(5);
+      if (importResult.success) {
+        // 导入成功后刷新 stores，让其他页面看到新数据
+        // Refresh stores on success so other pages see the new data
+        if (currentUser?.id) {
+          fetchRecentTransactions(currentUser.id, 10);
+          fetchAccounts(currentUser.id);
+        }
+        showSuccess(`导入完成：新增 ${importResult.inserted}，跳过 ${importResult.skipped}`);
+      }
     } catch (e) {
       showError(`导入失败: ${(e as Error).message}`);
     }
