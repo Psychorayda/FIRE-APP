@@ -38,11 +38,11 @@ jobs:
       - name: Generate pre-release version
         shell: bash
         run: |
-          DATE=$(date -u +%Y%m%d)
           RUN_NUM=${{ github.run_number }}
-          # 0.1.1-dev.x：始终 > 本地 package.json 的 0.1.0，确保 electron-updater 判定为"有更新"
+          # 0.1.1-dev.N：始终 > 本地 package.json 的 0.1.0，确保 electron-updater 判定为"有更新"
           # （allowDowngrade=false，0.0.0-dev.x < 0.1.0 会导致 UpdateDialog 不弹）
-          VERSION="0.1.1-dev.${DATE}.${RUN_NUM}"
+          # 仅用 run_number 不带日期，避免 tag 含过多点号导致 GitHub release 422
+          VERSION="0.1.1-dev.${RUN_NUM}"
           node -e "
             const fs = require('fs');
             const p = 'apps/desktop/package.json';
@@ -51,6 +51,7 @@ jobs:
             fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
           "
           echo "Generated version: ${VERSION}"
+          echo "version=$VERSION" >> $GITHUB_ENV
 
       - name: Run tests (gate)
         run: pnpm test:all
