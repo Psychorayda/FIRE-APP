@@ -15,20 +15,20 @@ import { ProgressGauge } from '../components/fire-calculator/ProgressGauge.js';
 import { ProjectionChart } from '../components/fire-calculator/ProjectionChart.js';
 
 export function FireCalculatorPage() {
+  // 细粒度 selector：仅订阅用到的字段，避免 store 任意字段变更触发整页重渲染
+  // Fine-grained selectors: subscribe only to used fields to avoid whole-page re-renders
   const currentUser = useAppStore((s) => s.currentUser);
-  const {
-    scenarios,
-    currentScenarioId,
-    projectionResult,
-    projectionLoading,
-    loading,
-    error,
-    fetchScenarios,
-    createScenario,
-    updateScenario,
-    selectScenario,
-    runProjection,
-  } = useScenarioStore();
+  const scenarios = useScenarioStore((s) => s.scenarios);
+  const currentScenarioId = useScenarioStore((s) => s.currentScenarioId);
+  const projectionResult = useScenarioStore((s) => s.projectionResult);
+  const projectionLoading = useScenarioStore((s) => s.projectionLoading);
+  const loading = useScenarioStore((s) => s.loading);
+  const error = useScenarioStore((s) => s.error);
+  const fetchScenarios = useScenarioStore((s) => s.fetchScenarios);
+  const createScenario = useScenarioStore((s) => s.createScenario);
+  const updateScenario = useScenarioStore((s) => s.updateScenario);
+  const selectScenario = useScenarioStore((s) => s.selectScenario);
+  const runProjection = useScenarioStore((s) => s.runProjection);
   const [investableBalance, setInvestableBalance] = useState<number | null>(null);
 
   useEffect(() => {

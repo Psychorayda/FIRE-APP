@@ -33,24 +33,19 @@ const SORT_OPTIONS = [
   { label: '金额升序', value: 'amount-asc' },
 ];
 
-// 辅助函数：查找账户名 / Helper: find account name
-function getAccountName(accounts: Account[], id: string | null): string {
-  if (!id) return '—';
-  return accounts.find((a) => a.id === id)?.name ?? '—';
-}
-
-// 辅助函数：查找分类名 / Helper: find category name
-function getCategoryName(categories: Category[], id: string | null): string {
-  if (!id) return '—';
-  return categories.find((c) => c.id === id)?.name ?? '—';
-}
-
 export function TransactionListTable({
   transactions, loading, accounts, categories, hasActiveFilters, onEdit, onDelete,
 }: TransactionListTableProps) {
   const [sortBy, setSortBy] = useState('date-desc');
 
   const sortedTxs = useMemo(() => sortTransactions(transactions, sortBy), [transactions, sortBy]);
+
+  // 预构建 id → name Map，render 内 O(1) 查找（替代每次 find O(n)）
+  // Pre-build id → name Maps for O(1) lookup in render (replaces per-row find O(n))
+  const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name] as const)), [accounts]);
+  const categoryMap = useMemo(() => new Map(categories.map((c) => [c.id, c.name] as const)), [categories]);
+  const getAccountName = (id: string | null): string => (id ? (accountMap.get(id) ?? '—') : '—');
+  const getCategoryName = (id: string | null): string => (id ? (categoryMap.get(id) ?? '—') : '—');
 
   const columns: TableColumn<Transaction>[] = [
     // 类型：色点 + 标签 / Type: dot + tag
@@ -88,11 +83,11 @@ export function TransactionListTable({
         if (r.transaction_type === 'transfer') {
           return (
             <span className="text-gray-600">
-              {getAccountName(accounts, r.account_id)} → {getAccountName(accounts, r.to_account_id)}
+              {getAccountName(r.account_id)} → {getAccountName(r.to_account_id)}
             </span>
           );
         }
-        return <span className="text-gray-600">{getAccountName(accounts, r.account_id)}</span>;
+        return <span className="text-gray-600">{getAccountName(r.account_id)}</span>;
       },
     },
     // 分类 / Category
@@ -101,7 +96,7 @@ export function TransactionListTable({
       title: '分类',
       render: (r) => (
         <span className="text-gray-600">
-          {r.category_id ? getCategoryName(categories, r.category_id) : '—'}
+          {r.category_id ? getCategoryName(r.category_id) : '—'}
         </span>
       ),
     },

@@ -16,8 +16,13 @@ import { AllocationDonut } from '../components/net-worth/AllocationDonut.js';
 import { AllocationDetail } from '../components/net-worth/AllocationDetail.js';
 
 export function NetWorthPage() {
+  // 细粒度 selector：仅订阅用到的字段，避免 store 任意字段变更触发整页重渲染
+  // Fine-grained selectors: subscribe only to used fields to avoid whole-page re-renders
   const currentUser = useAppStore((s) => s.currentUser);
-  const { snapshots, loading, error, fetchSnapshots } = useSnapshotStore();
+  const snapshots = useSnapshotStore((s) => s.snapshots);
+  const loading = useSnapshotStore((s) => s.loading);
+  const error = useSnapshotStore((s) => s.error);
+  const fetchSnapshots = useSnapshotStore((s) => s.fetchSnapshots);
 
   const [timeRange, setTimeRange] = useState<TimeRangeKey>('6m');
   const [metric, setMetric] = useState<MetricKey>('netWorth');

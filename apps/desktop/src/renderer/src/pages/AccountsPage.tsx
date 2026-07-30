@@ -15,9 +15,18 @@ import { AccountListTable } from '../components/accounts/AccountListTable.js';
 import { AccountFormModal } from '../components/accounts/AccountFormModal.js';
 
 export function AccountsPage() {
-  const { accounts, loading, error, fetchAccounts, createAccount, updateAccount, softDeleteAccount } = useAccountStore();
-  const { currentUser } = useAppStore();
-  const { showSuccess, showError } = useToastStore();
+  // 细粒度 selector：仅订阅用到的字段，避免 store 任意字段变更触发整页重渲染
+  // Fine-grained selectors: subscribe only to used fields to avoid whole-page re-renders
+  const accounts = useAccountStore((s) => s.accounts);
+  const loading = useAccountStore((s) => s.loading);
+  const error = useAccountStore((s) => s.error);
+  const fetchAccounts = useAccountStore((s) => s.fetchAccounts);
+  const createAccount = useAccountStore((s) => s.createAccount);
+  const updateAccount = useAccountStore((s) => s.updateAccount);
+  const softDeleteAccount = useAccountStore((s) => s.softDeleteAccount);
+  const currentUser = useAppStore((s) => s.currentUser);
+  const showSuccess = useToastStore((s) => s.showSuccess);
+  const showError = useToastStore((s) => s.showError);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');

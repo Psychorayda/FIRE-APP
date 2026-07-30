@@ -2,6 +2,7 @@
 // 精简版交易列表：4 列（类型、日期、账户、金额），无排序无操作
 // Simplified transaction list: 4 columns (type, date, account, amount), no sort/actions
 
+import { useMemo } from 'react';
 import type { Transaction, Account } from '@shared/types/index.js';
 import { Card } from '../base/Card.js';
 import { Table, type TableColumn } from '../base/Table.js';
@@ -17,13 +18,12 @@ interface RecentTransactionsProps {
   accounts: Account[];
 }
 
-// 辅助：查找账户名 / Helper: find account name
-function getAccountName(accounts: Account[], id: string | null): string {
-  if (!id) return '—';
-  return accounts.find((a) => a.id === id)?.name ?? '—';
-}
-
 export function RecentTransactions({ transactions, accounts }: RecentTransactionsProps) {
+  // 预构建 id → name Map，render 内 O(1) 查找（替代每次 find O(n)）
+  // Pre-build id → name Map for O(1) lookup in render (replaces per-row find O(n))
+  const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name] as const)), [accounts]);
+  const getAccountName = (id: string | null): string => (id ? (accountMap.get(id) ?? '—') : '—');
+
   const columns: TableColumn<Transaction>[] = [
     // 类型：色点 + 标签 / Type: dot + tag
     {
@@ -55,11 +55,11 @@ export function RecentTransactions({ transactions, accounts }: RecentTransaction
         if (r.transaction_type === 'transfer') {
           return (
             <span className="text-gray-600">
-              {getAccountName(accounts, r.account_id)} → {getAccountName(accounts, r.to_account_id)}
+              {getAccountName(r.account_id)} → {getAccountName(r.to_account_id)}
             </span>
           );
         }
-        return <span className="text-gray-600">{getAccountName(accounts, r.account_id)}</span>;
+        return <span className="text-gray-600">{getAccountName(r.account_id)}</span>;
       },
     },
     // 金额：sign + formatAmount，颜色按 type / Amount: sign + formatAmount, color by type

@@ -31,14 +31,23 @@ const PAGE_SIZE = 50;
 const ONE_DAY_MS = 86400000;
 
 export function TransactionsPage() {
-  const {
-    pagedTransactions, total, loading, error,
-    fetchTransactionPage, createTransaction, editTransaction, deleteTransaction,
-  } = useTransactionStore();
-  const { accounts, fetchAccounts } = useAccountStore();
-  const { categories, fetchCategories } = useCategoryStore();
-  const { currentUser } = useAppStore();
-  const { showSuccess, showError } = useToastStore();
+  // 细粒度 selector：仅订阅用到的字段，避免 store 任意字段变更触发整页重渲染
+  // Fine-grained selectors: subscribe only to used fields to avoid whole-page re-renders
+  const pagedTransactions = useTransactionStore((s) => s.pagedTransactions);
+  const total = useTransactionStore((s) => s.total);
+  const loading = useTransactionStore((s) => s.loading);
+  const error = useTransactionStore((s) => s.error);
+  const fetchTransactionPage = useTransactionStore((s) => s.fetchTransactionPage);
+  const createTransaction = useTransactionStore((s) => s.createTransaction);
+  const editTransaction = useTransactionStore((s) => s.editTransaction);
+  const deleteTransaction = useTransactionStore((s) => s.deleteTransaction);
+  const accounts = useAccountStore((s) => s.accounts);
+  const fetchAccounts = useAccountStore((s) => s.fetchAccounts);
+  const categories = useCategoryStore((s) => s.categories);
+  const fetchCategories = useCategoryStore((s) => s.fetchCategories);
+  const currentUser = useAppStore((s) => s.currentUser);
+  const showSuccess = useToastStore((s) => s.showSuccess);
+  const showError = useToastStore((s) => s.showError);
 
   const [page, setPage] = useState(0);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
