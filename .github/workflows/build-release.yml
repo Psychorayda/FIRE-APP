@@ -31,6 +31,7 @@ jobs:
         run: pnpm install --no-frozen-lockfile
 
       - name: Generate pre-release version
+        shell: bash
         run: |
           DATE=$(date -u +%Y%m%d)
           RUN_NUM=${{ github.run_number }}
