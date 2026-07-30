@@ -14,7 +14,7 @@ services 层是业务逻辑层，协调多个 model 的写操作。与 models �
 - **跨表一致性**：例如编辑交易时需同时调整新旧账户的余额
 - **算法计算**：FIRE 投影、快照聚合等业务算法
 
-services 目录包含 9 个文件（本节覆盖 8 个，`category-service.ts` 为简单分类 CRUD 封装，此处不展开）：
+services 目录包含 9 个文件，本节覆盖全部 9 个：
 
 | 文件 | 职责 | 行数 | 是否写库 | 是否含事务 |
 |------|------|------|----------|-----------|
@@ -26,6 +26,7 @@ services 目录包含 9 个文件（本节覆盖 8 个，`category-service.ts` �
 | [column-whitelist.ts](file:///workspace/packages/shared/src/services/column-whitelist.ts) | 列名白名单校验（防 SQL 注入） | 36 | 否 | 否 |
 | [import-service.ts](file:///workspace/packages/shared/src/services/import-service.ts) | JSON LWW 导入 + CSV 交易导入 | 207 | 是 | 是 |
 | [clear-service.ts](file:///workspace/packages/shared/src/services/clear-service.ts) | 清空所有交易 + 账户余额归零 | 35 | 是 | 是 |
+| [category-service.ts](file:///workspace/packages/shared/src/services/category-service.ts) | 系统分类重置（软删 + re-seed 18 个内置分类） | 22 | 是 | 是 |
 
 **依赖方向**：services 依赖 models + utils + types + `import-templates/`。services 层之间的调用关系：
 - `recurring-service` 与 `import-service` 均调用 `transaction-service` 的 `createTransaction`，复用其事务原子性保证
@@ -605,6 +606,25 @@ FROM users WHERE id = ?
 - **补 `sync_version + 1` 与 `updated_at`**：确保清空操作能被同步层识别并传播到其他设备
 - **账户保留**：仅归零余额，不删除账户本身（用户可继续使用现有账户结构）
 - **错误兜底**：`try/catch` 捕获异常，返回 `success: false` + `error` 字段，不向上抛
+
+---
+
+## 9.5 category-service.ts — 分类重置服务
+
+源码：[category-service.ts](file:///workspace/packages/shared/src/services/category-service.ts)
+
+**职责**：系统分类重置——事务内软删除现有系统分类（`is_system = 1`）并重新 seed 18 个内置分类，自定义分类（`is_system = 0`）保留不动。
+
+### `resetSystemCategories`（[category-service.ts:15](file:///workspace/packages/shared/src/services/category-service.ts#L15)）
+
+**签名**：`(db, userId) => void`
+
+**事务流程**（`db.transaction`，[category-service.ts:16-21](file:///workspace/packages/shared/src/services/category-service.ts#L16-L21)）：
+
+1. **软删除系统分类**：`UPDATE categories SET deleted_flag = 1, updated_at = ? WHERE user_id = ? AND is_system = 1`
+2. **重新 seed**：调用 [models/category.ts](file:///workspace/packages/shared/src/models/category.ts) 的 `seedCategories` 插入 18 个内置分类
+
+**设计要点**：跨表组合操作（软删 + 重新 seed）包裹在事务内保证原子性；仅重置系统分类，用户的自定义分类不受影响。依赖 [models/category.ts](file:///workspace/packages/shared/src/models/category.ts) 的 `seedCategories` 与 [utils/time.ts](file:///workspace/packages/shared/src/utils/time.ts) 的 `nowMs`。
 
 ---
 
