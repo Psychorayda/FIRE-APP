@@ -31,8 +31,8 @@ export function UpdateSection() {
     <div className="rounded-lg border border-gray-200 p-4">
       <h3 className="mb-3 text-base font-semibold text-gray-900">关于 / 更新</h3>
       <div className="space-y-1 text-sm text-gray-600">
-        <p>当前版本：v{currentVersion}</p>
-        <p>最新版本：{latestText}</p>
+        <p>当前版本：<span>v{currentVersion}</span></p>
+        <p>最新版本：<span>{latestText}</span></p>
       </div>
       <button
         onClick={handleCheck}

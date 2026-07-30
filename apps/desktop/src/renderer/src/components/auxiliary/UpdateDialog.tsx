@@ -25,7 +25,7 @@ export function UpdateDialog() {
         {/* 标题 */}
         {phase === 'available' && (
           <h2 className="mb-2 text-lg font-semibold text-gray-900">
-            发现新版本 v{latestVersion}
+            {`发现新版本 v${latestVersion}`}
           </h2>
         )}
         {phase === 'downloading' && (
@@ -44,7 +44,7 @@ export function UpdateDialog() {
         {/* 内容 */}
         {phase === 'available' && (
           <div className="mb-4 space-y-2">
-            <p className="text-sm text-gray-600">当前版本：v{currentVersion}</p>
+            <p className="text-sm text-gray-600">{`当前版本：v${currentVersion}`}</p>
             {releaseNotes && (
               <div>
                 <p className="mb-1 text-sm font-medium text-gray-700">更新内容：</p>
@@ -65,7 +65,7 @@ export function UpdateDialog() {
                 style={{ width: `${downloadProgress ?? 0}%` }}
               />
             </div>
-            <p className="mt-1 text-right text-xs text-gray-500">{downloadProgress ?? 0}%</p>
+            <p className="mt-1 text-right text-xs text-gray-500">{`${downloadProgress ?? 0}%`}</p>
           </div>
         )}
 
@@ -77,7 +77,7 @@ export function UpdateDialog() {
 
         {phase === 'not-available' && (
           <p className="mb-4 text-sm text-gray-600">
-            当前版本 v{currentVersion} 已是最新。
+            {`当前版本 v${currentVersion} 已是最新。`}
           </p>
         )}
 

@@ -88,7 +88,7 @@ describe('UpdateDialog', () => {
       dialogOpen: true,
     });
     render(<UpdateDialog />);
-    expect(screen.getByText('下载中...')).toBeInTheDocument();
+    expect(screen.getAllByText('下载中...')).toHaveLength(2);
     expect(screen.getByText('65%')).toBeInTheDocument();
   });
 
