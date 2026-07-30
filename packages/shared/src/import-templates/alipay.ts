@@ -45,7 +45,6 @@ function parseAlipayRow(row: string[], lineNum: number): ParsedCsvTransaction {
   const amountStr = row[9] ?? '0';
   const description = row[8] ?? '';
   const counterparty = row[7] ?? '';
-  const categoryType = row[5] ?? '';
 
   const amountYuan = parseFloat(amountStr.replace(/[¥￥,]/g, '')) || 0;
   const amountCents = Math.round(amountYuan * 100);

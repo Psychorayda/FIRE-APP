@@ -10,10 +10,9 @@ import type { CreateScenarioInput } from '@shared/models/scenario.js';
 import type { CreateTransactionInput, EditTransactionInput } from '@shared/services/transaction-service.js';
 import type { TransactionPageParams } from '@shared/models/transaction-queries.js';
 import type {
-  User, Account, Category, Transaction, RecurringTransaction,
-  NetWorthSnapshot, FireScenario, CategoryType,
+  RecurringTransaction,
+  FireScenario, CategoryType,
 } from '@shared/types/index.js';
-import type { ProjectionResult } from '@shared/services/fire-calc.js';
 import type { ExportTableName } from '@shared/services/export-service.js';
 import type { ParsedCsvTransaction } from '@shared/import-templates/types.js';
 
