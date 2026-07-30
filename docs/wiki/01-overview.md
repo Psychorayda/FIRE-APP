@@ -1,6 +1,6 @@
 # 01-overview.md — 项目概览
 
-> **最后更新**: 2026-07-29
+> **最后更新**: 2026-07-30
 > **对应代码**: `packages/shared/src/`（数据层）+ `apps/desktop/src/`（桌面端）
 > **导航**: [← 返回主页](CODE_WIKI.md) | [下一节](02-database.md)
 
@@ -37,6 +37,7 @@ FIRE APP 面向**个人使用**，定位为本地优先（local-first）、离�
 - **个人使用**：整个数据模型围绕**单用户**设计，`users` 表预期仅 1 条记录。所有表都以 `user_id` 隔离，但实际只有一个用户。这简化了权限模型与查询逻辑（所有查询都以 `user_id` 为前导字段建索引）。
 - **本地优先**：数据存储在本地 SQLite 数据库（`better-sqlite3`），离线可完整使用全部功能。无云端依赖即可完成记账、快照、FIRE 投影全部计算。
 - **离线友好 + 加密同步**：所有表统一含同步元数据三件套（`sync_version` / `updated_at` / `deleted_flag`），支持记录级 LWW（Last-Write-Wins）冲突解决；主键使用 UUID v4 以支持离线创建无冲突。加密同步层在设计文档中规划（零知识架构，云端仅存密文 blob），但**尚未实现**。
+- **CSV 导入（7 套预设模板 + 关键词推断）**：M8 引入端到端 CSV 导入流水线，覆盖支付宝、微信支付、招行/工行/建行/中行/农商行 5 家银行借记卡共 7 套预设模板（[packages/shared/src/import-templates/](file:///workspace/packages/shared/src/import-templates/)）。模板按 `fileSignatures` 自动识别来源（[registry.ts](file:///workspace/packages/shared/src/import-templates/registry.ts) 的 `detectTemplate`），未匹配字段由 [keyword-rules.ts](file:///workspace/packages/shared/src/import-templates/keyword-rules.ts) 的 `inferCategory` 基于关键词推断分类（餐饮/交通/住房/购物等 11 条规则）。文件读写经 [path-guard.ts](file:///workspace/apps/desktop/src/main/ipc/path-guard.ts) 一次性 token 校验，CSV 编码（含 GBK）由 `iconv-lite` 解码。
 
 ### 1.4 设计原则
 
@@ -64,9 +65,14 @@ FIRE APP 面向**个人使用**，定位为本地优先（local-first）、离�
 | 测试套件（12 单元 + 1 集成） | ✅ 已实现 | [tests/](file:///workspace/packages/shared/tests/) |
 | Electron 层（main 主进程 / preload / renderer 渲染层） | ✅ 已实现 | `apps/desktop/src/main/` + `apps/desktop/src/preload/` + `apps/desktop/src/renderer/` |
 | 前端代码（IPC 通道 / React 19 组件 / Zustand 状态管理） | ✅ 已实现 | 数据层位于 `packages/shared`，桌面端位于 `apps/desktop`，见前端架构 spec |
+| 净资产趋势可视化（M5） | ✅ 已实现 | [NetWorthTrendChart.tsx](file:///workspace/apps/desktop/src/renderer/src/components/dashboard/NetWorthTrendChart.tsx) + [TrendChart.tsx](file:///workspace/apps/desktop/src/renderer/src/components/net-worth/TrendChart.tsx) + [AllocationDonut.tsx](file:///workspace/apps/desktop/src/renderer/src/components/net-worth/AllocationDonut.tsx) |
+| FIRE 计算器（M6） | ✅ 已实现 | [FireCalculatorPage.tsx](file:///workspace/apps/desktop/src/renderer/src/pages/FireCalculatorPage.tsx) + [components/fire-calculator/](file:///workspace/apps/desktop/src/renderer/src/components/fire-calculator/)（场景表单 / 进度仪表 / 投影图 / 结果卡片） |
+| 设置页（M7） | ✅ 已实现 | [SettingsPage.tsx](file:///workspace/apps/desktop/src/renderer/src/pages/SettingsPage.tsx) + [DataManagementPanel.tsx](file:///workspace/apps/desktop/src/renderer/src/components/data-management/DataManagementPanel.tsx) |
+| 数据导入导出（M8） | ✅ 已实现 | [export-import-handlers.ts](file:///workspace/apps/desktop/src/main/ipc/export-import-handlers.ts) + [import-csv-parser.ts](file:///workspace/apps/desktop/src/main/import-csv-parser.ts) + [import-templates/](file:///workspace/packages/shared/src/import-templates/)（7 套预设模板 + 关键词推断）+ [CsvImportWizard.tsx](file:///workspace/apps/desktop/src/renderer/src/components/data-management/CsvImportWizard.tsx) |
+| 安全/性能/UX 加固（M9） | ✅ 已实现 | [path-guard.ts](file:///workspace/apps/desktop/src/main/ipc/path-guard.ts)（一次性路径 token）+ [schemas.ts](file:///workspace/apps/desktop/src/main/ipc/schemas.ts)（zod IPC 输入校验）+ `@tanstack/react-virtual` 表格虚拟化 + [ErrorBoundary.tsx](file:///workspace/apps/desktop/src/renderer/src/components/base/ErrorBoundary.tsx) + [Toast.tsx](file:///workspace/apps/desktop/src/renderer/src/components/auxiliary/Toast.tsx) |
 | 加密同步层 | ⏳ 规划中 | 数据模型预留同步字段，同步引擎未实现 |
 
-当前仓库的核心成果是**完整的本地数据层、FIRE 计算引擎与 Electron 桌面端**——从数据库 schema、类型契约、CRUD 模型、事务化服务到测试覆盖，再到 Electron 主进程 + IPC 桥 + React 渲染层，已构成可运行的桌面应用；跨设备加密同步为后续里程碑。
+当前仓库的核心成果是**完整的本地数据层、FIRE 计算引擎、Electron 桌面端及 M5-M9 功能性里程碑**——从数据库 schema、类型契约、CRUD 模型、事务化服务到测试覆盖，再到 Electron 主进程 + IPC 桥 + React 渲染层，并叠加净资产趋势可视化、FIRE 计算器、设置页、CSV 导入导出与安全/性能/UX 加固，已构成功能完整的可运行桌面应用；跨设备加密同步为后续里程碑。
 
 ### 1.6 参考设计文档
 
@@ -118,6 +124,9 @@ FIRE APP 面向**个人使用**，定位为本地优先（local-first）、离�
 | react-router-dom | ^7.0.0 | dependency | 路由（6 个核心页面） |
 | zustand | ^5.0.0 | dependency | 状态管理 |
 | recharts | ^2 | dependency | 图表（净资产趋势 / FIRE 投影面积图） |
+| zod | ^3.23.0 | dependency | IPC 输入校验（[schemas.ts](file:///workspace/apps/desktop/src/main/ipc/schemas.ts) 按域定义 schema，handler 入口 parse） |
+| @tanstack/react-virtual | ^3.10.0 | dependency | 表格虚拟化（大列表性能，账户/交易表） |
+| iconv-lite | ^0.7.3 | dependency | CSV 编码处理（GBK 解码，[import-csv-parser.ts](file:///workspace/apps/desktop/src/main/import-csv-parser.ts)） |
 | tailwindcss | ^4.0.0 | devDependency | 原子化 CSS（via @tailwindcss/vite） |
 | @fire-app/shared | workspace:* | dependency | 引用本仓库数据层 |
 | vitest | ^2.0.0 | devDependency | 桌面端组件 / store 测试 |
@@ -200,6 +209,54 @@ flowchart TD
 ```
 
 上图展示 4 层架构与数据流向：`users` 是所有层的同步根与外键源头；财务追踪层内 4 张表相互关联（账户、分类、模板都指向交易）；快照层从账户层聚合；FIRE 投影层从账户层读取可投资余额作为投影起点。层间关系均为"上层依赖下层提供的数据"，不反向。
+
+#### 3.1.1 桌面端进程架构图
+
+除数据模型 4 层外，桌面端运行时也按 **4 层进程架构** 组织（自底向上：数据层 → desktop main 层 → preload 层 → renderer 层）。该架构对应 Electron 三进程模型 + 共享数据层，层间通过 IPC 与 `contextBridge` 解耦，安全边界由 [path-guard.ts](file:///workspace/apps/desktop/src/main/ipc/path-guard.ts) 与 [schemas.ts](file:///workspace/apps/desktop/src/main/ipc/schemas.ts) 守护。
+
+```mermaid
+flowchart TD
+    subgraph D1["① 数据层 (packages/shared)"]
+        DB["db/<br/>connection + schema"]
+        TY["types/<br/>5 枚举 + 7 接口"]
+        MD["models/<br/>7 文件 DAL"]
+        SV["services/<br/>4 文件业务服务"]
+        UT["utils/<br/>money / sync / time"]
+        IT["import-templates/<br/>7 套 CSV 模板 + 关键词推断"]
+    end
+    subgraph D2["② desktop main 层 (Electron 主进程)"]
+        DM["db-manager.ts<br/>持有 better-sqlite3 连接"]
+        IPC["ipc/<br/>按域注册 handler (9 域)"]
+        PG["path-guard.ts<br/>一次性路径 token"]
+        SC["schemas.ts<br/>zod IPC 输入校验"]
+        ICP["import-csv-parser.ts<br/>iconv-lite 解码 + 模板解析"]
+    end
+    subgraph D3["③ preload 层"]
+        PA["dataAccess<br/>contextBridge 暴露 IPC API"]
+    end
+    subgraph D4["④ renderer 层 (React 19)"]
+        RT["router/<br/>RequireInit + 7 页面路由"]
+        ST["stores/<br/>Zustand (7 store)"]
+        CP["components/<br/>base / layout / accounts / transactions /<br/>dashboard / net-worth / fire-calculator / data-management"]
+        PG2["pages/<br/>Dashboard / Accounts / Transactions /<br/>NetWorth / FireCalculator / Settings / Onboarding"]
+        DA["data/<br/>data-access-port + ipc-data-access"]
+    end
+
+    D1 -->|"workspace:* 引用"| D2
+    D2 -->|"ipcMain.handle"| D3
+    D3 -->|"contextBridge.exposeInMainWorld"| D4
+    D4 -->|"window.dataAccess.* 调用"| D3
+    DA -->|"实现 data-access-port"| PA
+```
+
+上图展示桌面端 4 层进程架构与调用链：
+
+- **① 数据层（[packages/shared/src/](file:///workspace/packages/shared/src/)）**：纯逻辑层，无 Electron 依赖。`db/`（连接 + schema）、`types/`（5 枚举 + 7 接口）、`models/`（7 文件 DAL）、`services/`（4 文件业务服务 + FIRE 计算）、`utils/`（money / sync / time）、`import-templates/`（7 套 CSV 预设模板 + 关键词推断）。
+- **② desktop main 层（[apps/desktop/src/main/](file:///workspace/apps/desktop/src/main/)）**：Electron 主进程，持有 Node.js 运行时与 better-sqlite3 连接。[db-manager.ts](file:///workspace/apps/desktop/src/main/db-manager.ts) 集中管理连接生命周期；[ipc/](file:///workspace/apps/desktop/src/main/ipc/) 按域分文件注册 handler（user / account / category / transaction / recurring / scenario / snapshot / fire-calc / db + export-import）；[path-guard.ts](file:///workspace/apps/desktop/src/main/ipc/path-guard.ts) 用一次性 token 防止渲染端复用旧路径绕过文件对话框；[schemas.ts](file:///workspace/apps/desktop/src/main/ipc/schemas.ts) 用 zod 在 handler 入口校验 IPC 输入；[import-csv-parser.ts](file:///workspace/apps/desktop/src/main/import-csv-parser.ts) 用 iconv-lite 解码 GBK 并按模板解析 CSV。
+- **③ preload 层（[apps/desktop/src/preload/](file:///workspace/apps/desktop/src/preload/)）**：通过 `contextBridge.exposeInMainWorld` 向渲染层暴露受限的 `dataAccess` API，是 main 与 renderer 之间唯一的桥接点，屏蔽 IPC 细节。
+- **④ renderer 层（[apps/desktop/src/renderer/src/](file:///workspace/apps/desktop/src/renderer/src/)）**：React 19 渲染层，运行在 BrowserWindow。[router/](file:///workspace/apps/desktop/src/renderer/src/router/)（RequireInit 守卫 + 7 页面路由）、[stores/](file:///workspace/apps/desktop/src/renderer/src/stores/)（7 个 Zustand store）、[components/](file:///workspace/apps/desktop/src/renderer/src/components/)（按域分组：base / layout / accounts / transactions / dashboard / net-worth / fire-calculator / data-management / auxiliary）、[pages/](file:///workspace/apps/desktop/src/renderer/src/pages/)（Dashboard / Accounts / Transactions / NetWorth / FireCalculator / Settings / Onboarding）、[data/](file:///workspace/apps/desktop/src/renderer/src/data/)（DataAccessPort 抽象 + ipc-data-access 实现，依赖注入便于测试）。
+
+层间调用为**单向向下**：renderer → preload → main → 数据层；数据层不反向依赖任何 Electron 模块，保证可被未来 React Native 移动端复用。安全边界集中在 main 层：所有文件 I/O 必须先消费 path-guard token，所有 IPC 输入必须通过 zod schema parse。
 
 ### 3.2 第 1 层：用户层
 
