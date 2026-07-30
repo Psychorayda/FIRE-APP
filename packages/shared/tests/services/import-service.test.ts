@@ -158,6 +158,15 @@ describe('import-service CSV', () => {
     expect(result[0].isDuplicate).toBe(true);
   });
 
+  it('markDuplicateTransactions: 同日同金额同描述但不同 type 不判重', () => {
+    createTransaction(db, { user_id: userId, account_id: accountId, category_id: null, transaction_type: 'income', amount: 5000, transaction_date: 1700000000000, description: '工资' });
+    const candidates: ParsedCsvTransaction[] = [
+      { tempId: 't1', transactionDate: 1700000000000, amount: -5000, transactionType: 'expense', description: '工资', counterparty: '', productDescription: '', mappedCategoryId: '', inferredCategoryId: '', finalCategoryId: '', dedupHash: '', isDuplicate: false, sourceLine: 0 },
+    ];
+    const marked = markDuplicateTransactions(db, accountId, candidates);
+    expect(marked[0].isDuplicate).toBe(false); // expense 不与 income 判重
+  });
+
   it('resolveCategoryForTransactions: 模板映射优先于关键词推断', () => {
     const categories = getCategories(db, userId);
     const tx = makeParsedTx({ description: '海底捞餐厅消费', mappedCategoryId: '__CATEGORY_FOOD__' });

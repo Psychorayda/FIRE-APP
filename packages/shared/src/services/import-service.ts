@@ -1,5 +1,4 @@
 import type { Database as DatabaseType } from 'better-sqlite3';
-import { v4 as uuidv4 } from 'uuid';
 import type { Category } from '../types/index.js';
 import type { ExportEnvelope, ExportTableName } from './export-service.js';
 import { EXPORT_TABLE_NAMES } from './export-service.js';
@@ -7,7 +6,7 @@ import { getColumnWhitelist, filterRecordColumns } from './column-whitelist.js';
 import type { ParsedCsvTransaction } from '../import-templates/types.js';
 import { inferCategory } from '../import-templates/keyword-rules.js';
 import { resolveCategoryPlaceholder } from '../import-templates/placeholder-resolver.js';
-import { nowMs } from '../utils/time.js';
+import { createTransaction } from './transaction-service.js';
 
 export interface ImportResult {
   success: boolean;
@@ -145,8 +144,16 @@ export function importCsvTransactions(db: DatabaseType, params: CsvImportParams)
           result.skipped++;
           continue;
         }
-        insertCsvTransaction(db, userId, accountId, tx);
-        updateAccountBalance(db, accountId, tx.amount, tx.transactionType);
+        // 复用 createTransaction 统一余额联动语义，消除符号处理分叉
+        // Reuse createTransaction for unified balance linkage, eliminate sign-handling divergence
+        createTransaction(db, {
+          user_id: userId, account_id: accountId,
+          category_id: tx.finalCategoryId || null,
+          transaction_type: tx.transactionType,
+          amount: Math.abs(tx.amount), // DB CHECK > 0，统一存正数
+          transaction_date: tx.transactionDate,
+          description: tx.description,
+        });
         result.inserted++;
       }
     })();
@@ -157,37 +164,19 @@ export function importCsvTransactions(db: DatabaseType, params: CsvImportParams)
   return result;
 }
 
-function insertCsvTransaction(db: DatabaseType, userId: string, accountId: string, tx: ParsedCsvTransaction): void {
-  const txId = uuidv4();
-  const now = nowMs();
-  const absAmount = Math.abs(tx.amount);
-  db.prepare(`
-    INSERT INTO transactions (id, user_id, account_id, to_account_id, category_id, recurring_id,
-      transaction_type, amount, transaction_date, description, sync_version, updated_at, deleted_flag)
-    VALUES (?, ?, ?, NULL, ?, NULL, ?, ?, ?, ?, 0, ?, 0)
-  `).run(txId, userId, accountId, tx.finalCategoryId || null, tx.transactionType, absAmount, tx.transactionDate, tx.description, now);
-}
-
-function updateAccountBalance(db: DatabaseType, accountId: string, amount: number, transactionType: 'income' | 'expense' | 'transfer'): void {
-  let delta = 0;
-  if (transactionType === 'income') delta = Math.abs(amount);
-  else if (transactionType === 'expense') delta = -Math.abs(amount);
-  if (delta !== 0) {
-    db.prepare('UPDATE accounts SET current_balance = current_balance + ?, last_updated = ? WHERE id = ?').run(delta, nowMs(), accountId);
-  }
-}
-
 export function markDuplicateTransactions(db: DatabaseType, accountId: string, transactions: ParsedCsvTransaction[]): ParsedCsvTransaction[] {
   const existingTx = db.prepare(
-    'SELECT transaction_date, amount, description FROM transactions WHERE account_id = ? AND deleted_flag = 0'
-  ).all(accountId) as { transaction_date: number; amount: number; description: string | null }[];
+    'SELECT transaction_date, amount, transaction_type, description FROM transactions WHERE account_id = ? AND deleted_flag = 0'
+  ).all(accountId) as { transaction_date: number; amount: number; transaction_type: string; description: string | null }[];
 
-  const existingSet = new Set(existingTx.map(t => `${t.transaction_date}|${t.amount}|${t.description ?? ''}`));
+  // hash 含 transaction_type，避免同日同金额同描述的 income/expense 误判
+  // hash includes transaction_type to avoid income/expense false-positive dedup
+  const existingSet = new Set(existingTx.map(t => `${t.transaction_date}|${t.amount}|${t.transaction_type}|${t.description ?? ''}`));
 
   return transactions.map(tx => {
     const absAmount = Math.abs(tx.amount);
-    const hashWithoutSign = `${tx.transactionDate}|${absAmount}|${tx.description}`;
-    return { ...tx, isDuplicate: existingSet.has(hashWithoutSign) };
+    const hash = `${tx.transactionDate}|${absAmount}|${tx.transactionType}|${tx.description ?? ''}`;
+    return { ...tx, isDuplicate: existingSet.has(hash) };
   });
 }
 
