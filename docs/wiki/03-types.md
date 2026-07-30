@@ -1,7 +1,7 @@
 # 03-types.md — 类型定义
 
-> **最后更新**: 2026-07-29
-> **对应代码**: `packages/shared/src/types/`
+> **最后更新**: 2026-07-30
+> **对应代码**: `packages/shared/src/types/`（核心实体）+ `packages/shared/src/services/`（M8）+ `packages/shared/src/models/`（M9）
 > **导航**: [← 返回主页](CODE_WIKI.md) | [上一节](02-database.md) | [下一节](04-models.md)
 
 ---
@@ -383,3 +383,341 @@ export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 | `deleted_flag` | `number` | 软删除标志，同步传播删除操作 |
 
 冲突解决规则：`shouldRemoteWin(local, remote)` 返回 `remote.updated_at >= local.updated_at`（详见 [06-utils.md](06-utils.md) 的 sync 小节）。
+
+---
+
+## 5. M8 导出/导入/清空类型
+
+M8 里程碑引入了数据导出（JSON / CSV）、导入（JSON LWW 合并 / CSV 模板解析）与一键清空交易的能力。配套的类型**定义在 services 与 import-templates 目录**，而非 `types/index.ts`，因为它们是服务层 DTO（数据传输对象）而非数据库实体。本节汇总这 8 个类型。
+
+### 5.1 `ExportTableName`
+
+源码：[export-service.ts](file:///workspace/packages/shared/src/services/export-service.ts)
+
+```typescript
+export const EXPORT_TABLE_NAMES = [
+  'users', 'accounts', 'categories', 'transactions',
+  'recurring_transactions', 'net_worth_snapshots', 'fire_scenarios',
+] as const;
+
+export type ExportTableName = (typeof EXPORT_TABLE_NAMES)[number];
+```
+
+- **值列表**：7 个，与第 3 节的 7 张实体表一一对应
+- **构造方式**：由 `EXPORT_TABLE_NAMES` 常量数组通过 `as const` + 索引访问类型推导而来，避免字面量重复书写
+- **使用场景**：`buildCsvExport(db, tableName, userId)` 的 `tableName` 形参类型；`importJsonWithLww` 内部 `processOrder: ExportTableName[]` 的元素类型
+- **运行时与编译期双重存在**：与第 2 节的 5 个枚举别名（纯编译期）不同，本类型伴随一个运行时常量 `EXPORT_TABLE_NAMES`，导入服务在 `validateEnvelope` 中复用该常量做"数据表数量与键名严格匹配"校验
+
+### 5.2 `ExportEnvelope`
+
+源码：[export-service.ts](file:///workspace/packages/shared/src/services/export-service.ts)
+
+```typescript
+export interface ExportEnvelope {
+  header: {
+    format: 'fire-app-export';
+    version: '1.0';
+    exported_at: number;
+    app_version: string;
+    table_count: number;
+    record_count: number;
+    crypto: null;
+  };
+  data: {
+    users: User[]; accounts: Account[]; categories: Category[];
+    transactions: Transaction[]; recurring_transactions: RecurringTransaction[];
+    net_worth_snapshots: NetWorthSnapshot[]; fire_scenarios: FireScenario[];
+  };
+}
+```
+
+JSON 导出文件的顶层信封结构，由 `buildExportEnvelope(db, userId, appVersion)` 构造、`serializeExportEnvelope` 序列化为 `JSON.stringify(envelope, null, 2)`（2 空格缩进）。
+
+- **`header` 子结构（内联类型，未单独导出为 `ExportHeader`）**：
+  | 字段 | 类型 | 说明 |
+  |------|------|------|
+  | `format` | `'fire-app-export'`（字面量） | 文件格式标识，导入时严格相等校验 |
+  | `version` | `'1.0'`（字面量） | 导出格式版本，导入时仅接受 `1.0` |
+  | `exported_at` | `number` | 导出时间戳（UTC 毫秒，由 `Date.now()` 生成） |
+  | `app_version` | `string` | 导出时的 App 版本号（由调用方传入） |
+  | `table_count` | `number` | 数据表数量，固定为 `EXPORT_TABLE_NAMES.length`（7） |
+  | `record_count` | `number` | 全表记录总数（7 个数组 `length` 之和） |
+  | `crypto` | `null` | 加密信息占位，当前恒为 `null`（加密功能未实现，导入时若非 `null` 报"加密文件暂不支持导入"） |
+- **`data` 子结构**：7 个数组字段，键名与 `EXPORT_TABLE_NAMES` 严格一致，元素类型为第 3 节对应的实体接口
+- **安全注意**：`buildExportEnvelope` 在查询 `users` 时使用显式列名并把 `encryption_key_hash` 替换为 `NULL`，避免将密码哈希写入导出文件（防离线爆破），详见 [05-services.md](05-services.md) 的 export-service 小节
+
+> 注：源码中 `header` 与 `data` 均为内联对象字面量类型，未单独导出 `ExportHeader` 别名。如需在别处引用 header 形状，使用 `ExportEnvelope['header']`。
+
+### 5.3 `ParsedCsvTransaction`
+
+源码：[types.ts](file:///workspace/packages/shared/src/import-templates/types.ts)
+
+CSV 导入流水线中"单条已解析交易"的中间表示，由模板的 `parseHook` 或通用解析器产出，随后经去重、分类推断、占位符解析等阶段逐步填充字段，最终由 `importCsvTransactions` 转写为 `transactions` 表行。
+
+```typescript
+export type ParsedTransactionType = 'income' | 'expense' | 'transfer';
+
+export interface ParsedCsvTransaction {
+  tempId: string;
+  transactionDate: number;
+  amount: number; // 分：正收入/负支出/0 转账
+  transactionType: ParsedTransactionType;
+  description: string;
+  counterparty?: string;
+  productDescription?: string;
+  mappedCategoryId?: string;
+  inferredCategoryId?: string;
+  finalCategoryId: string;
+  dedupHash: string;
+  isDuplicate: boolean;
+  sourceLine: number;
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tempId` | `string` | 是 | 解析阶段生成的临时 ID（仅用于前端列表 key） |
+| `transactionDate` | `number` | 是 | 交易日期（UTC 毫秒） |
+| `amount` | `number` | 是 | 金额（分），符号约定：正=收入、负=支出、0=转账；入库时取 `Math.abs()` |
+| `transactionType` | `ParsedTransactionType` | 是 | 交易类型（3 值，**无** `initial_balance`） |
+| `description` | `string` | 是 | 描述，映射到 `transactions.description` |
+| `counterparty` | `string` | 否 | 交易对手方（来自 CSV 列） |
+| `productDescription` | `string` | 否 | 商品描述（用于关键词分类推断） |
+| `mappedCategoryId` | `string` | 否 | 模板 `categoryMapping` 给出的占位符（如 `__CAT_FOOD__`） |
+| `inferredCategoryId` | `string` | 否 | 关键词规则推断出的占位符 |
+| `finalCategoryId` | `string` | 是 | 经占位符解析后填入的真实分类 UUID；空串表示未匹配到分类 |
+| `dedupHash` | `string` | 是 | 去重哈希（含 `transactionDate` / `amount` / `transactionType` / `description`） |
+| `isDuplicate` | `boolean` | 是 | 是否与库内已有交易重复（由 `markDuplicateTransactions` 填充） |
+| `sourceLine` | `number` | 是 | 源 CSV 行号（用于错误定位） |
+
+- **`ParsedTransactionType`**：独立导出的 3 值字面量联合（`'income' | 'expense' | 'transfer'`），与第 2.3 节 `TransactionType` 的前 3 值一致但**不含** `initial_balance`
+- **生命周期**：解析 → `markDuplicateTransactions` 设 `isDuplicate` → `resolveCategoryForTransactions` 设 `finalCategoryId` → `importCsvTransactions` 落库（重复项跳过）
+
+### 5.4 `CsvImportTemplate`
+
+源码：[types.ts](file:///workspace/packages/shared/src/import-templates/types.ts)
+
+CSV 导入模板的静态配置结构，描述某类银行账单（如招行、支付宝）的文件特征与列映射规则。
+
+```typescript
+export interface ColumnMapping {
+  date: { columnName?: string; columnIndex?: number; format: 'yyyy-mm-dd' | 'yyyy/mm/dd' | 'dd-mm-yyyy' | 'timestamp' };
+  amount: { columnName?: string; columnIndex?: number };
+  description: { columnName?: string; columnIndex?: number };
+  counterparty?: { columnName?: string; columnIndex?: number };
+  productDescription?: { columnName?: string; columnIndex?: number };
+  category?: { columnName?: string; columnIndex?: number };
+}
+
+export interface CsvImportTemplate {
+  id: string;
+  displayName: string;
+  description: string;
+  fileSignatures: string[];
+  encoding: 'utf-8' | 'gbk';
+  headerLineCount: number;
+  columnMapping: ColumnMapping;
+  categoryMapping: Record<string, string>;
+  amountConvention: 'positive_is_income' | 'positive_is_expense' | 'signed';
+  parseHook?: (rawRows: string[][]) => ParsedCsvTransaction[];
+}
+```
+
+`CsvImportTemplate` 字段说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `string` | 模板唯一标识 |
+| `displayName` | `string` | UI 显示名 |
+| `description` | `string` | 模板描述 |
+| `fileSignatures` | `string[]` | 文件特征签名（用于自动匹配模板，如文件名/首行内容匹配） |
+| `encoding` | `'utf-8' \| 'gbk'` | 文件编码 |
+| `headerLineCount` | `number` | 表头行数（解析时跳过前 N 行） |
+| `columnMapping` | `ColumnMapping` | 列映射（按列名或列索引定位字段） |
+| `categoryMapping` | `Record<string, string>` | 分类映射：CSV 原始值 → 占位符（如 `"餐饮" → "__CAT_FOOD__"`） |
+| `amountConvention` | `'positive_is_income' \| 'positive_is_expense' \| 'signed'` | 金额符号约定 |
+| `parseHook` | `(rawRows: string[][]) => ParsedCsvTransaction[]`（可选） | 自定义解析钩子，覆盖默认解析逻辑 |
+
+`ColumnMapping` 字段说明：`date` / `amount` / `description` 为必填（其中 `date.format` 必填，支持 4 种日期格式），`counterparty` / `productDescription` / `category` 为可选；每个字段可用 `columnName`（列名）或 `columnIndex`（列索引）二选一定位。
+
+### 5.5 `ImportResult`
+
+源码：[import-service.ts](file:///workspace/packages/shared/src/services/import-service.ts)
+
+```typescript
+export interface ImportResult {
+  success: boolean;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+}
+```
+
+JSON 导入（`importJsonWithLww`）与 CSV 导入（`importCsvTransactions`）共用的统一结果类型。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | `boolean` | 整体是否成功（任何阶段抛错或校验失败置 `false`） |
+| `inserted` | `number` | 新增记录数（LWW：本地不存在该 `id`） |
+| `updated` | `number` | 更新记录数（LWW：`remote.updated_at > local.updated_at`） |
+| `skipped` | `number` | 跳过记录数（LWW：远端不比本地新；CSV：`isDuplicate` 为真） |
+| `errors` | `string[]` | 错误信息列表（校验失败时含多条；异常时含 1 条异常 message） |
+
+- **失败语义**：失败时 `inserted` / `updated` / `skipped` 全部归零（在 try/catch 的 catch 分支显式重置），`errors` 含失败原因
+- **事务边界**：JSON 导入与 CSV 导入均包裹在 `db.transaction(() => { ... })()` 中，整体原子提交；任一记录异常则全部回滚
+
+### 5.6 `CsvImportParams`
+
+源码：[import-service.ts](file:///workspace/packages/shared/src/services/import-service.ts)
+
+```typescript
+export interface CsvImportParams {
+  templateId: string;
+  filePath: string;
+  accountId: string;
+  userId: string;
+  transactions: ParsedCsvTransaction[];
+}
+```
+
+`importCsvTransactions(db, params)` 的入参契约。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `templateId` | `string` | 使用的模板 ID |
+| `filePath` | `string` | CSV 文件路径 |
+| `accountId` | `string` | 目标账户 ID（所有交易挂账到此账户） |
+| `userId` | `string` | 用户 ID |
+| `transactions` | `ParsedCsvTransaction[]` | 已解析、去重、分类解析完成的交易列表 |
+
+> 注：`importCsvTransactions` 实际仅使用 `userId` / `accountId` / `transactions` 三字段；`templateId` 与 `filePath` 保留用于日志与未来扩展。
+
+### 5.7 `ClearResult`
+
+源码：[clear-service.ts](file:///workspace/packages/shared/src/services/clear-service.ts)
+
+```typescript
+export interface ClearResult {
+  success: boolean;
+  clearedTransactionCount: number;
+  clearedRecurringCount: number;
+  resetAccountCount: number;
+  error?: string;
+}
+```
+
+`clearAllTransactions(db, userId)` 的返回类型，描述"一键清空交易数据"操作的影响范围。
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `success` | `boolean` | 是 | 是否成功 |
+| `clearedTransactionCount` | `number` | 是 | 软删除的交易记录数（操作前 `deleted_flag = 0` 的交易条数） |
+| `clearedRecurringCount` | `number` | 是 | 软删除的经常性模板数 |
+| `resetAccountCount` | `number` | 是 | 余额被置零的账户数 |
+| `error` | `string` | 否 | 失败时的异常 message（成功时缺省） |
+
+- **操作语义**：软删除（`deleted_flag = 1`）交易与经常性模板，并将所有账户 `current_balance` 置零；不删除账户、分类、快照、场景
+- **事务边界**：整个操作包裹在单个事务中，原子提交
+
+---
+
+## 6. M9 分页查询/经常性更新类型
+
+M9 里程碑引入了交易分页查询（替代旧的全量拉取）、月度收支聚合与经常性模板的部分更新能力。配套类型定义在 `models/` 目录，是查询函数的入参/出参契约。
+
+### 6.1 `TransactionPageParams`
+
+源码：[transaction-queries.ts](file:///workspace/packages/shared/src/models/transaction-queries.ts)
+
+```typescript
+export interface TransactionPageParams {
+  dateFrom?: number;
+  dateTo?: number;
+  type?: 'income' | 'expense' | 'transfer' | 'initial_balance';
+  accountId?: string;
+  limit: number;
+  offset: number;
+}
+```
+
+`getTransactionsPage(db, userId, params)` 的筛选 + 分页入参。
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `dateFrom` | `number` | 否 | 起始日期（UTC 毫秒，闭区间，`transaction_date >= ?`） |
+| `dateTo` | `number` | 否 | 截止日期（UTC 毫秒，闭区间，`transaction_date <= ?`） |
+| `type` | `'income' \| 'expense' \| 'transfer' \| 'initial_balance'` | 否 | 交易类型过滤（与第 2.3 节 `TransactionType` 同 4 值） |
+| `accountId` | `string` | 否 | 账户 ID 过滤（`account_id = ?`） |
+| `limit` | `number` | 是 | 每页条数（SQL `LIMIT`） |
+| `offset` | `number` | 是 | 偏移量（SQL `OFFSET`） |
+
+- **筛选下推**：所有可选筛选条件均下推到 SQL `WHERE` 子句，避免在 JS 层过滤全量数据
+- **排序规则**：固定 `ORDER BY transaction_date DESC, updated_at DESC`（不在参数中暴露）
+- **软删除过滤**：`deleted_flag = 0` 恒定附加，不可配置
+
+### 6.2 `TransactionPage`
+
+源码：[transaction-queries.ts](file:///workspace/packages/shared/src/models/transaction-queries.ts)
+
+```typescript
+export interface TransactionPage {
+  items: Transaction[];
+  total: number;
+}
+```
+
+`getTransactionsPage` 的返回结构。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `items` | `Transaction[]` | 当前页交易记录（按 `transaction_date DESC, updated_at DESC` 排序） |
+| `total` | `number` | 满足筛选条件的总记录数（独立 `COUNT(*)` 查询，非 `items.length`） |
+
+- **设计动机**：`total` 用于前端分页器渲染总页数；与 `items` 分两次 SQL 查询（一次 `COUNT`，一次 `SELECT * ... LIMIT/OFFSET`）
+
+### 6.3 `MonthlyOverview`
+
+源码：[transaction-queries.ts](file:///workspace/packages/shared/src/models/transaction-queries.ts)
+
+```typescript
+export interface MonthlyOverview {
+  income: number;
+  expense: number;
+  transfer: number;
+}
+```
+
+`getMonthlyOverview(db, userId, yearMonth)` 的返回结构，按交易类型分组的月度金额合计。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `income` | `number` | 当月收入合计（分，`SUM(CASE WHEN transaction_type='income' THEN amount ELSE 0 END)`） |
+| `expense` | `number` | 当月支出合计（分） |
+| `transfer` | `number` | 当月转账合计（分） |
+
+- **聚合下推**：使用 SQL `SUM(CASE WHEN ...)` 与 `strftime('%Y-%m', transaction_date / 1000, 'unixepoch')` 在数据库层完成聚合，避免拉全量到 JS 层
+- **空结果处理**：当月无交易时返回 `{ income: 0, expense: 0, transfer: 0 }`（通过 `COALESCE(..., 0)` 与 `??` 兜底）
+- **不包含** `initial_balance` 类型（仅 income / expense / transfer 三类参与聚合）
+
+### 6.4 `RecurringUpdateFields`
+
+源码：[recurring.ts](file:///workspace/packages/shared/src/models/recurring.ts)
+
+```typescript
+export type RecurringUpdateFields = Partial<Pick<RecurringTransaction, 'next_due_date' | 'last_generated_date' | 'is_active'>>;
+```
+
+`updateRecurring(db, id, updates)` 的可更新字段契约。
+
+- **类型构造**：`Partial<Pick<RecurringTransaction, 'next_due_date' | 'last_generated_date' | 'is_active'>>`
+  - `Pick<RecurringTransaction, ...>` 从第 3.5 节 `RecurringTransaction` 接口中精确摘取 3 个字段
+  - `Partial<...>` 将这 3 个字段全部变为可选
+- **可更新字段**（3 个，全部可选）：
+  | 字段 | 原类型（Pick 前） | 说明 |
+  |------|-------------------|------|
+  | `next_due_date` | `number` | 下次到期日（生成交易后顺延） |
+  | `last_generated_date` | `number \| null` | 上次生成交易日期 |
+  | `is_active` | `number` | 是否活跃（0/1，停用模板） |
+- **设计动机**：限制可更新字段为最小必要集，防止调用方误改 `amount` / `frequency` / `account_id` 等需重建模板的字段；`sync_version` 与 `updated_at` 由 `updateRecurring` 内部自动维护（`sync_version + 1`、`updated_at = nowMs()`）
+- **运行时行为**：`updateRecurring` 用 `{ ...current, ...updates }` 合并后，UPDATE 语句**固定写入全部 3 个字段**（含未被更新的字段，沿用原值），而非动态拼接 SET 子句
