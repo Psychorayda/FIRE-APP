@@ -10,6 +10,8 @@ import { Input } from '../base/Input.js';
 import { Select } from '../base/Select.js';
 import { Button } from '../base/Button.js';
 import { ASSET_CLASS_OPTIONS, ACCOUNT_TYPE_OPTIONS } from './account-constants.js';
+import { useCurrency } from '../../hooks/use-currency.js';
+import { CURRENCY_SYMBOLS } from '../transactions/transaction-constants.js';
 
 interface AccountFormModalProps {
   open: boolean;
@@ -22,6 +24,8 @@ interface AccountFormModalProps {
 }
 
 export function AccountFormModal({ open, mode, account, userId, loading, onSubmit, onClose }: AccountFormModalProps) {
+  const currency = useCurrency();
+  const currencySymbol = CURRENCY_SYMBOLS[currency] ?? '¥';
   const [name, setName] = useState('');
   const [assetClass, setAssetClass] = useState<AssetClass>('liquid');
   const [accountType, setAccountType] = useState<AccountType>('checking');
@@ -86,14 +90,8 @@ export function AccountFormModal({ open, mode, account, userId, loading, onSubmi
       title={mode === 'create' ? '新增账户' : '编辑账户'}
       onClose={onClose}
       width={520}
-      footer={
-        <>
-          <Button variant="secondary" size="md" onClick={onClose} disabled={loading}>取消</Button>
-          <Button variant="primary" size="md" loading={loading} onClick={handleSubmit}>确定</Button>
-        </>
-      }
     >
-      <div className="space-y-4">
+      <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-4">
         <Input
           label="账户名称"
           type="text"
@@ -103,7 +101,7 @@ export function AccountFormModal({ open, mode, account, userId, loading, onSubmi
           placeholder="例如：招商银行活期"
           onChange={setName}
         />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
             label="资产分类"
             options={ASSET_CLASS_OPTIONS}
@@ -123,7 +121,7 @@ export function AccountFormModal({ open, mode, account, userId, loading, onSubmi
           label="初始余额"
           type="number"
           value={initialBalance}
-          prefix="¥"
+          prefix={currencySymbol}
           error={errors.initialBalance}
           disabled={mode === 'edit'}
           onChange={setInitialBalance}
@@ -135,7 +133,11 @@ export function AccountFormModal({ open, mode, account, userId, loading, onSubmi
           placeholder="可选，账户备注说明"
           onChange={setNote}
         />
-      </div>
+        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          <Button type="button" variant="secondary" size="md" onClick={onClose} disabled={loading}>取消</Button>
+          <Button type="submit" variant="primary" size="md" loading={loading}>{mode === 'edit' ? '保存' : '确定'}</Button>
+        </div>
+      </form>
     </Modal>
   );
 }

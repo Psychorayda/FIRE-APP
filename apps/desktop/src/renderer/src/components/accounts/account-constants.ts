@@ -2,6 +2,7 @@
 
 import type { Account, AssetClass, AccountType } from '@shared/types/index.js';
 import { centsToYuan } from '@shared/utils/money.js';
+import { CURRENCY_SYMBOLS, CURRENCY_LOCALES } from '../transactions/transaction-constants.js';
 
 /** 资产分类配置：标签、色点类名、标签类名（raw Tailwind） */
 export const ASSET_CLASS_CONFIG: Record<AssetClass, { label: string; dotClass: string; tagClass: string }> = {
@@ -38,14 +39,16 @@ export const ACCOUNT_TYPE_OPTIONS = (Object.keys(ACCOUNT_TYPE_LABELS) as Account
   value: t,
 }));
 
-/** 分转元并格式化为人民币货币字符串（负数自然显示为 -¥） */
-export function formatBalance(cents: number): string {
+/** 分转元并格式化为货币字符串（默认 CNY，可按 base_currency 切换 ¥ / $，负数显示为 -¥） */
+export function formatBalance(cents: number, currency: string = 'CNY'): string {
+  const symbol = CURRENCY_SYMBOLS[currency] ?? '¥';
+  const locale = CURRENCY_LOCALES[currency] ?? 'zh-CN';
   const yuan = centsToYuan(cents);
-  return new Intl.NumberFormat('zh-CN', {
-    style: 'currency',
-    currency: 'CNY',
+  const formatted = new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
-  }).format(yuan);
+    maximumFractionDigits: 2,
+  }).format(Math.abs(yuan));
+  return yuan < 0 ? `-${symbol}${formatted}` : `${symbol}${formatted}`;
 }
 
 /** 资产概览聚合结果 */

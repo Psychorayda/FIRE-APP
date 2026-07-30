@@ -7,6 +7,7 @@ import type { MonthlyProjectionPoint } from '@shared/services/fire-calc.js';
 import { Card } from '../base/Card.js';
 import { EmptyState } from '../auxiliary/EmptyState.js';
 import { formatProjectionForChart, formatFireAmount } from './fire-calc-constants.js';
+import { useCurrency } from '../../hooks/use-currency.js';
 
 interface ProjectionChartProps {
   data: MonthlyProjectionPoint[];
@@ -15,6 +16,7 @@ interface ProjectionChartProps {
 }
 
 export function ProjectionChart({ data, fireNumber, loading }: ProjectionChartProps) {
+  const currency = useCurrency();
   const chartData = formatProjectionForChart(data, fireNumber);
   const fireNumberYuan = fireNumber / 100;
 
@@ -41,7 +43,7 @@ export function ProjectionChart({ data, fireNumber, loading }: ProjectionChartPr
               <XAxis dataKey="age" tick={{ fontSize: 12 }} stroke="#9ca3af" />
               <YAxis hide />
               <Tooltip
-                formatter={(value: number) => [formatFireAmount(value * 100), '余额']}
+                formatter={(value: number) => [formatFireAmount(value * 100, currency), '余额']}
                 labelFormatter={(label) => `年龄: ${label}`}
               />
               <ReferenceLine y={fireNumberYuan} stroke="#EF4444" strokeDasharray="5 5" />

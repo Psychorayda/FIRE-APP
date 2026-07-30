@@ -35,7 +35,7 @@ export function TransactionFilters({ filters, accounts, categories, onFiltersCha
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
         <Select options={TYPE_OPTIONS} value={filters.type} onChange={(v) => update({ type: v })} />
         <Select options={accountOptions} value={filters.account_id} onChange={(v) => update({ account_id: v })} />
         <Select options={categoryOptions} value={filters.category_id} onChange={(v) => update({ category_id: v })} />

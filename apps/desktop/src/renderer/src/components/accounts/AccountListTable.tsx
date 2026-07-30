@@ -10,6 +10,7 @@ import { EmptyState } from '../auxiliary/EmptyState.js';
 import {
   ASSET_CLASS_CONFIG, ACCOUNT_TYPE_LABELS, formatBalance,
 } from './account-constants.js';
+import { useCurrency } from '../../hooks/use-currency.js';
 
 interface AccountListTableProps {
   accounts: Account[];
@@ -28,6 +29,7 @@ const SORT_OPTIONS = [
 
 export function AccountListTable({ accounts, loading, onEdit, onDelete }: AccountListTableProps) {
   const [sortBy, setSortBy] = useState('default');
+  const currency = useCurrency();
 
   const sortedAccounts = useMemo(() => {
     const copy = [...accounts];
@@ -79,7 +81,7 @@ export function AccountListTable({ accounts, loading, onEdit, onDelete }: Accoun
       align: 'right',
       render: (r) => (
         <span className={r.current_balance < 0 ? 'text-red-600 font-medium' : 'text-gray-900'}>
-          {formatBalance(r.current_balance)}
+          {formatBalance(r.current_balance, currency)}
         </span>
       ),
     },

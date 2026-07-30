@@ -5,23 +5,25 @@
 import type { Transaction } from '@shared/types/index.js';
 import { Card } from '../base/Card.js';
 import { computeOverview, formatAmount } from './transaction-constants.js';
+import { useCurrency } from '../../hooks/use-currency.js';
 
 interface TransactionOverviewCardsProps {
   transactions: Transaction[];
 }
 
 export function TransactionOverviewCards({ transactions }: TransactionOverviewCardsProps) {
+  const currency = useCurrency();
   const overview = computeOverview(transactions);
 
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {/* 收入卡 / Income card */}
       <Card>
         <div className="flex items-center gap-2 mb-2">
           <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
           <span className="text-sm text-gray-500">收入</span>
         </div>
-        <div className="text-xl font-semibold text-gray-900">{formatAmount(overview.income)}</div>
+        <div className="text-xl font-semibold text-gray-900">{formatAmount(overview.income, currency)}</div>
       </Card>
 
       {/* 支出卡 / Expense card */}
@@ -30,7 +32,7 @@ export function TransactionOverviewCards({ transactions }: TransactionOverviewCa
           <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
           <span className="text-sm text-gray-500">支出</span>
         </div>
-        <div className="text-xl font-semibold text-gray-900">{formatAmount(overview.expense)}</div>
+        <div className="text-xl font-semibold text-gray-900">{formatAmount(overview.expense, currency)}</div>
       </Card>
 
       {/* 结余卡 / Balance card */}
@@ -40,7 +42,7 @@ export function TransactionOverviewCards({ transactions }: TransactionOverviewCa
           <span className="text-sm text-gray-500">结余</span>
         </div>
         <div className={`text-xl font-semibold ${overview.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
-          {formatAmount(overview.balance)}
+          {formatAmount(overview.balance, currency)}
         </div>
       </Card>
     </div>

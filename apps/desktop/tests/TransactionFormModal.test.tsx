@@ -287,8 +287,8 @@ describe('TransactionFormModal', () => {
       expect(screen.getByDisplayValue('招行活期')).toBeInTheDocument();
     });
 
-    // 提交
-    await user.click(screen.getByText('确定'));
+    // 提交（edit 模式按钮文案为 "保存"）
+    await user.click(screen.getByText('保存'));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
     const input = onSubmit.mock.calls[0][0];

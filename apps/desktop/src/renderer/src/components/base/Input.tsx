@@ -1,5 +1,7 @@
 // 输入框组件 / Input component
 
+import { useId } from 'react';
+
 interface InputProps {
   type: 'text' | 'number' | 'date';
   label?: string;
@@ -10,14 +12,17 @@ interface InputProps {
   disabled?: boolean;
   prefix?: string;
   suffix?: string;
+  id?: string;
   onChange?: (value: string) => void;
 }
 
-export function Input({ type, label, value, error, placeholder, required, disabled, prefix, suffix, onChange }: InputProps) {
+export function Input({ type, label, value, error, placeholder, required, disabled, prefix, suffix, id, onChange }: InputProps) {
+  const autoId = useId();
+  const inputId = id ?? autoId;
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-1">
           {label}
           {required && <span className="text-red-500 ml-1">*</span>}
         </label>
@@ -27,6 +32,7 @@ export function Input({ type, label, value, error, placeholder, required, disabl
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">{prefix}</span>
         )}
         <input
+          id={inputId}
           type={type}
           value={value}
           placeholder={placeholder}

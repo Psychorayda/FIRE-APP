@@ -5,6 +5,7 @@
 import type { ProjectionResult } from '@shared/services/fire-calc.js';
 import { formatFireAmount, formatProgress } from './fire-calc-constants.js';
 import { Card } from '../base/Card.js';
+import { useCurrency } from '../../hooks/use-currency.js';
 
 interface ResultCardsProps {
   result: ProjectionResult | null;
@@ -17,7 +18,7 @@ interface CardConfig {
   dotClass: string;
 }
 
-function buildCards(result: ProjectionResult | null, loading: boolean): CardConfig[] {
+function buildCards(result: ProjectionResult | null, loading: boolean, currency: string): CardConfig[] {
   if (loading) {
     return [
       { label: 'FIRE Number', value: '加载中...', dotClass: 'bg-blue-500' },
@@ -35,17 +36,18 @@ function buildCards(result: ProjectionResult | null, loading: boolean): CardConf
     ];
   }
   return [
-    { label: 'FIRE Number', value: formatFireAmount(result.fire_number), dotClass: 'bg-blue-500' },
-    { label: '调整后 FIRE Number', value: formatFireAmount(result.adjusted_fire_number), dotClass: 'bg-indigo-500' },
+    { label: 'FIRE Number', value: formatFireAmount(result.fire_number, currency), dotClass: 'bg-blue-500' },
+    { label: '调整后 FIRE Number', value: formatFireAmount(result.adjusted_fire_number, currency), dotClass: 'bg-indigo-500' },
     { label: '当前进度', value: formatProgress(result.progress), dotClass: 'bg-green-500' },
-    { label: '退休时资产', value: formatFireAmount(result.retirement_portfolio), dotClass: 'bg-purple-500' },
+    { label: '退休时资产', value: formatFireAmount(result.retirement_portfolio, currency), dotClass: 'bg-purple-500' },
   ];
 }
 
 export function ResultCards({ result, loading }: ResultCardsProps) {
-  const cards = buildCards(result, loading);
+  const currency = useCurrency();
+  const cards = buildCards(result, loading, currency);
   return (
-    <div className="grid grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {cards.map((c) => (
         <Card key={c.label}>
           <div className="flex items-center gap-2 mb-2">

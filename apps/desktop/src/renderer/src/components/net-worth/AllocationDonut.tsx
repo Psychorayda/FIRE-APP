@@ -6,6 +6,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Card } from '../base/Card.js';
 import { EmptyState } from '../auxiliary/EmptyState.js';
 import { formatYuan } from './net-worth-constants.js';
+import { useCurrency } from '../../hooks/use-currency.js';
 import type { AllocationData } from './net-worth-constants.js';
 
 interface AllocationDonutProps {
@@ -14,6 +15,7 @@ interface AllocationDonutProps {
 }
 
 export function AllocationDonut({ data, loading }: AllocationDonutProps) {
+  const currency = useCurrency();
   return (
     <Card title="资产配比（最新月份）">
       {loading ? (
@@ -44,7 +46,7 @@ export function AllocationDonut({ data, loading }: AllocationDonutProps) {
           {/* Center: net worth */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <span className="text-xs text-gray-500">净资产</span>
-            <span className="text-lg font-semibold text-gray-900">{formatYuan(data.netWorth)}</span>
+            <span className="text-lg font-semibold text-gray-900">{formatYuan(data.netWorth, currency)}</span>
           </div>
         </div>
       )}

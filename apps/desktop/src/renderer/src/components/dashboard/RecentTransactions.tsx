@@ -12,6 +12,7 @@ import {
   formatAmount,
   formatDate,
 } from '../transactions/transaction-constants.js';
+import { useCurrency } from '../../hooks/use-currency.js';
 
 interface RecentTransactionsProps {
   transactions: Transaction[];
@@ -19,6 +20,7 @@ interface RecentTransactionsProps {
 }
 
 export function RecentTransactions({ transactions, accounts }: RecentTransactionsProps) {
+  const currency = useCurrency();
   // 预构建 id → name Map，render 内 O(1) 查找（替代每次 find O(n)）
   // Pre-build id → name Map for O(1) lookup in render (replaces per-row find O(n))
   const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name] as const)), [accounts]);
@@ -77,7 +79,7 @@ export function RecentTransactions({ transactions, accounts }: RecentTransaction
               : 'text-blue-600';
         return (
           <span className={`font-medium ${colorClass}`}>
-            {config.sign}{formatAmount(r.amount)}
+            {config.sign}{formatAmount(r.amount, currency)}
           </span>
         );
       },

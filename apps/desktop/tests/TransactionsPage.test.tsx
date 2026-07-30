@@ -229,8 +229,8 @@ describe('TransactionsPage', () => {
       expect(screen.getByDisplayValue('招行活期')).toBeInTheDocument();
     });
 
-    // 提交
-    await user.click(screen.getByText('确定'));
+    // 提交（edit 模式按钮文案为 "保存"）
+    await user.click(screen.getByText('保存'));
 
     await waitFor(() => {
       expect(dataAccess.editTransaction).toHaveBeenCalledTimes(1);

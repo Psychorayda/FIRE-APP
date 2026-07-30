@@ -6,6 +6,7 @@ import type { User, FireScenario } from '@shared/types/index.js';
 import type { CreateScenarioInput } from '@shared/models/scenario.js';
 import type { MonthlyProjectionPoint } from '@shared/services/fire-calc.js';
 import { centsToYuan } from '@shared/utils/money.js';
+import { CURRENCY_SYMBOLS, CURRENCY_LOCALES } from '../transactions/transaction-constants.js';
 
 // ============= 单位转换 =============
 
@@ -23,15 +24,17 @@ export function percentToBasisPoints(percent: number): number {
 
 // ============= 格式化 =============
 
-/** 分 → 元 → 人民币货币字符串 */
-// cents → yuan → CNY currency string
-export function formatFireAmount(cents: number): string {
+/** 分 → 元 → 货币字符串（默认 CNY，可按 base_currency 切换 ¥ / $） */
+// cents → yuan → currency string (defaults to CNY; switches ¥ / $ per base_currency)
+export function formatFireAmount(cents: number, currency: string = 'CNY'): string {
+  const symbol = CURRENCY_SYMBOLS[currency] ?? '¥';
+  const locale = CURRENCY_LOCALES[currency] ?? 'zh-CN';
   const yuan = centsToYuan(cents);
-  return new Intl.NumberFormat('zh-CN', {
-    style: 'currency',
-    currency: 'CNY',
+  const formatted = new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
-  }).format(yuan);
+    maximumFractionDigits: 2,
+  }).format(Math.abs(yuan));
+  return yuan < 0 ? `-${symbol}${formatted}` : `${symbol}${formatted}`;
 }
 
 /** 进度格式化（66.7 → '66.7%'） */

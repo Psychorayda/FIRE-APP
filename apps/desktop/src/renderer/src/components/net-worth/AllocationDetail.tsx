@@ -5,6 +5,7 @@
 import { Card } from '../base/Card.js';
 import { EmptyState } from '../auxiliary/EmptyState.js';
 import { formatYuan } from './net-worth-constants.js';
+import { useCurrency } from '../../hooks/use-currency.js';
 import type { AllocationData } from './net-worth-constants.js';
 
 interface AllocationDetailProps {
@@ -12,6 +13,7 @@ interface AllocationDetailProps {
 }
 
 export function AllocationDetail({ data }: AllocationDetailProps) {
+  const currency = useCurrency();
   return (
     <Card title="明细">
       {!data.hasData ? (
@@ -30,7 +32,7 @@ export function AllocationDetail({ data }: AllocationDetailProps) {
                 <span className="text-sm text-gray-700">{item.name}</span>
               </div>
               <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-gray-900">{formatYuan(item.value)}</span>
+                <span className="text-sm font-medium text-gray-900">{formatYuan(item.value, currency)}</span>
                 <span className="text-sm text-gray-500 w-16 text-right">{item.percent.toFixed(1)}%</span>
               </div>
             </div>
@@ -45,7 +47,7 @@ export function AllocationDetail({ data }: AllocationDetailProps) {
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-900">净资产</span>
             <span className={`text-sm font-semibold ${data.netWorth < 0 ? 'text-red-600' : 'text-gray-900'}`}>
-              {formatYuan(data.netWorth)}
+              {formatYuan(data.netWorth, currency)}
             </span>
           </div>
         </div>

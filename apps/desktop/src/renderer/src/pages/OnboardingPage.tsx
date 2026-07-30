@@ -152,7 +152,7 @@ export function OnboardingPage() {
 
         {/* 步骤 2: 输入显示名称 */}
         {step === 2 && (
-          <div>
+          <form onSubmit={(e) => { e.preventDefault(); handleNext(); }}>
             <h2 className="text-lg font-semibold text-gray-900 mb-4">输入显示名称</h2>
             <Input
               type="text"
@@ -164,10 +164,10 @@ export function OnboardingPage() {
               onChange={(v) => updateField('display_name', v)}
             />
             <div className="flex justify-end gap-2 mt-6">
-              <Button variant="secondary" size="md" onClick={handlePrev}>上一步</Button>
-              <Button variant="primary" size="md" onClick={handleNext}>下一步</Button>
+              <Button type="button" variant="secondary" size="md" onClick={handlePrev}>上一步</Button>
+              <Button type="submit" variant="primary" size="md">下一步</Button>
             </div>
-          </div>
+          </form>
         )}
 
         {/* 步骤 3: 选择市场 */}
@@ -216,7 +216,7 @@ export function OnboardingPage() {
 
         {/* 步骤 4: 确认利率偏好 */}
         {step === 4 && (
-          <div>
+          <form onSubmit={(e) => { e.preventDefault(); handleNext(); }}>
             <h2 className="text-lg font-semibold text-gray-900 mb-4">确认默认利率偏好</h2>
             <p className="text-sm text-gray-500 mb-4">以下为基于市场选择的默认值，可调整（单位：基点）。</p>
             <div className="space-y-4">
@@ -246,10 +246,10 @@ export function OnboardingPage() {
               />
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <Button variant="secondary" size="md" onClick={handlePrev}>上一步</Button>
-              <Button variant="primary" size="md" onClick={handleNext}>下一步</Button>
+              <Button type="button" variant="secondary" size="md" onClick={handlePrev}>上一步</Button>
+              <Button type="submit" variant="primary" size="md">下一步</Button>
             </div>
-          </div>
+          </form>
         )}
 
         {/* 步骤 5: 确认完成 */}

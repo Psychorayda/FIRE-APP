@@ -226,7 +226,7 @@ describe('ScenarioForm', () => {
     fireEvent.click(screen.getByText('编辑'));
     const ageInput = screen.getByLabelText('当前年龄') as HTMLInputElement;
     fireEvent.change(ageInput, { target: { value: '15' } });
-    fireEvent.click(screen.getByText('保存'));
+    fireEvent.submit(screen.getByText('保存').closest('form')!);
     expect(onSave).not.toHaveBeenCalled();
     expect(screen.getByText('当前年龄需在 18-80 之间')).toBeInTheDocument();
   });
@@ -463,13 +463,13 @@ describe('FireCalculatorPage 集成', () => {
     // 输入非法年龄 → 保存被阻止
     const ageInput = screen.getByLabelText('当前年龄') as HTMLInputElement;
     fireEvent.change(ageInput, { target: { value: '15' } });
-    fireEvent.click(screen.getByText('保存'));
+    fireEvent.submit(screen.getByText('保存').closest('form')!);
     expect(screen.getByText('当前年龄需在 18-80 之间')).toBeInTheDocument();
     expect(window.dataAccess.scenario.update).not.toHaveBeenCalled();
 
     // 修正年龄 → 保存成功
     fireEvent.change(ageInput, { target: { value: '35' } });
-    fireEvent.click(screen.getByText('保存'));
+    fireEvent.submit(screen.getByText('保存').closest('form')!);
     expect(window.dataAccess.scenario.update).toHaveBeenCalledWith('s1', expect.objectContaining({ current_age: 35 }));
     // 回到浏览模式
     expect(screen.getByText('编辑')).toBeInTheDocument();

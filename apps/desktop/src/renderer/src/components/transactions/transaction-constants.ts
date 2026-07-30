@@ -47,15 +47,22 @@ export interface TransactionOverview {
   balance: number;   // income - expense
 }
 
-/** 分转元并格式化为人民币货币字符串 */
-// Convert cents to yuan and format as CNY currency string
-export function formatAmount(cents: number): string {
+/** 货币符号映射 / Currency symbol map */
+export const CURRENCY_SYMBOLS: Record<string, string> = { CNY: '¥', USD: '$' };
+/** 货币区域映射 / Currency locale map */
+export const CURRENCY_LOCALES: Record<string, string> = { CNY: 'zh-CN', USD: 'en-US' };
+
+/** 分转元并格式化为货币字符串（默认 CNY，可按 base_currency 切换 ¥ / $） */
+// Convert cents to yuan and format as currency string (defaults to CNY; switches ¥ / $ per base_currency)
+export function formatAmount(cents: number, currency: string = 'CNY'): string {
+  const symbol = CURRENCY_SYMBOLS[currency] ?? '¥';
+  const locale = CURRENCY_LOCALES[currency] ?? 'zh-CN';
   const yuan = centsToYuan(cents);
-  return new Intl.NumberFormat('zh-CN', {
-    style: 'currency',
-    currency: 'CNY',
+  const formatted = new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
-  }).format(yuan);
+    maximumFractionDigits: 2,
+  }).format(Math.abs(yuan));
+  return yuan < 0 ? `-${symbol}${formatted}` : `${symbol}${formatted}`;
 }
 
 /** 时间戳 → YYYY-MM-DD 字符串 */

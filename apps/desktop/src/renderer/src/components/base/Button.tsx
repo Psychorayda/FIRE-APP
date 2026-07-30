@@ -5,6 +5,7 @@ import type { ReactNode, MouseEvent } from 'react';
 interface ButtonProps {
   variant: 'primary' | 'secondary' | 'danger';
   size: 'sm' | 'md' | 'lg';
+  type?: 'button' | 'submit' | 'reset';
   loading?: boolean;
   disabled?: boolean;
   icon?: ReactNode;
@@ -24,9 +25,10 @@ const SIZE_CLASSES: Record<ButtonProps['size'], string> = {
   lg: 'h-12 px-6 text-base',
 };
 
-export function Button({ variant, size, loading, disabled, icon, onClick, children }: ButtonProps) {
+export function Button({ variant, size, type = 'button', loading, disabled, icon, onClick, children }: ButtonProps) {
   return (
     <button
+      type={type}
       onClick={onClick}
       disabled={disabled || loading}
       className={`inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]}`}

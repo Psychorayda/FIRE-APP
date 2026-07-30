@@ -73,7 +73,48 @@ export function Table<T extends { id?: string }>({ columns, data, loading, empty
   if (!enableVirtual) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <table className="w-full">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px]">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                {columns.map((col) => (
+                  <th
+                    key={col.key}
+                    className={`px-4 py-3 text-sm font-medium text-gray-600 ${alignClass(col.align)}`}
+                    style={col.width ? { width: col.width } : undefined}
+                  >
+                    {col.title}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((record, index) => (
+                <tr
+                  key={record.id ?? index}
+                  onClick={() => onRowClick?.(record)}
+                  className={`border-b border-gray-100 last:border-0 ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                >
+                  {columns.map((col) => (
+                    <td key={col.key} className={`px-4 py-3 text-sm text-gray-900 ${alignClass(col.align)}`}>
+                      {col.render ? col.render(record) : (record as Record<string, unknown>)[col.key] as ReactNode}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  // 虚拟化路径：只渲染可见 + overscan 行 / Virtualized path: render only visible + overscan rows
+  const virtualItems = virtualizer.getVirtualItems();
+  return (
+    <div ref={parentRef} className="bg-white rounded-lg border border-gray-200 overflow-auto" style={{ maxHeight: '600px' }}>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[600px]">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
               {columns.map((col) => (
@@ -87,70 +128,33 @@ export function Table<T extends { id?: string }>({ columns, data, loading, empty
               ))}
             </tr>
           </thead>
-          <tbody>
-            {data.map((record, index) => (
-              <tr
-                key={record.id ?? index}
-                onClick={() => onRowClick?.(record)}
-                className={`border-b border-gray-100 last:border-0 ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}
-              >
-                {columns.map((col) => (
-                  <td key={col.key} className={`px-4 py-3 text-sm text-gray-900 ${alignClass(col.align)}`}>
-                    {col.render ? col.render(record) : (record as Record<string, unknown>)[col.key] as ReactNode}
-                  </td>
-                ))}
-              </tr>
-            ))}
+          <tbody style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
+            {virtualItems.map((virtualItem) => {
+              const record = data[virtualItem.index];
+              return (
+                <tr
+                  key={record.id ?? virtualItem.index}
+                  onClick={() => onRowClick?.(record)}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    transform: `translateY(${virtualItem.start}px)`,
+                    height: `${virtualItem.size}px`,
+                    width: '100%',
+                  }}
+                  className={`border-b border-gray-100 ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                >
+                  {columns.map((col) => (
+                    <td key={col.key} className={`px-4 py-3 text-sm text-gray-900 ${alignClass(col.align)}`}>
+                      {col.render ? col.render(record) : (record as Record<string, unknown>)[col.key] as ReactNode}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
-    );
-  }
-
-  // 虚拟化路径：只渲染可见 + overscan 行 / Virtualized path: render only visible + overscan rows
-  const virtualItems = virtualizer.getVirtualItems();
-  return (
-    <div ref={parentRef} className="bg-white rounded-lg border border-gray-200 overflow-auto" style={{ maxHeight: '600px' }}>
-      <table className="w-full">
-        <thead>
-          <tr className="bg-gray-50 border-b border-gray-200">
-            {columns.map((col) => (
-              <th
-                key={col.key}
-                className={`px-4 py-3 text-sm font-medium text-gray-600 ${alignClass(col.align)}`}
-                style={col.width ? { width: col.width } : undefined}
-              >
-                {col.title}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
-          {virtualItems.map((virtualItem) => {
-            const record = data[virtualItem.index];
-            return (
-              <tr
-                key={record.id ?? virtualItem.index}
-                onClick={() => onRowClick?.(record)}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  transform: `translateY(${virtualItem.start}px)`,
-                  height: `${virtualItem.size}px`,
-                  width: '100%',
-                }}
-                className={`border-b border-gray-100 ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}
-              >
-                {columns.map((col) => (
-                  <td key={col.key} className={`px-4 py-3 text-sm text-gray-900 ${alignClass(col.align)}`}>
-                    {col.render ? col.render(record) : (record as Record<string, unknown>)[col.key] as ReactNode}
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
     </div>
   );
 }

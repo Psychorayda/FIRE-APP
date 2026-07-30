@@ -5,6 +5,7 @@
 import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from 'recharts';
 import { Card } from '../base/Card.js';
 import { formatFireAmount, formatProgress } from './fire-calc-constants.js';
+import { useCurrency } from '../../hooks/use-currency.js';
 
 interface ProgressGaugeProps {
   progress: number;       // 0-100
@@ -13,6 +14,7 @@ interface ProgressGaugeProps {
 }
 
 export function ProgressGauge({ progress, fireNumber, currentValue }: ProgressGaugeProps) {
+  const currency = useCurrency();
   const data = [{ name: 'progress', value: progress, fill: '#3b82f6' }];
   const clamped = Math.min(100, Math.max(0, progress));
 
@@ -38,7 +40,7 @@ export function ProgressGauge({ progress, fireNumber, currentValue }: ProgressGa
         </div>
       </div>
       <div className="mt-2 text-center text-xs text-gray-500">
-        {formatFireAmount(currentValue)} → {formatFireAmount(fireNumber)}
+        {formatFireAmount(currentValue, currency)} → {formatFireAmount(fireNumber, currency)}
       </div>
     </Card>
   );

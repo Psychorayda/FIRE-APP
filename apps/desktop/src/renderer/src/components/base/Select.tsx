@@ -1,5 +1,7 @@
 // 下拉选择组件 / Select component
 
+import { useId } from 'react';
+
 interface SelectOption {
   label: string;
   value: string;
@@ -13,19 +15,23 @@ interface SelectProps {
   required?: boolean;
   disabled?: boolean;
   placeholder?: string;
+  id?: string;
   onChange?: (value: string) => void;
 }
 
-export function Select({ options, value, label, error, required, disabled, placeholder, onChange }: SelectProps) {
+export function Select({ options, value, label, error, required, disabled, placeholder, id, onChange }: SelectProps) {
+  const autoId = useId();
+  const selectId = id ?? autoId;
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={selectId} className="block text-sm font-medium text-gray-700 mb-1">
           {label}
           {required && <span className="text-red-500 ml-1">*</span>}
         </label>
       )}
       <select
+        id={selectId}
         value={value}
         disabled={disabled}
         onChange={(e) => onChange?.(e.target.value)}

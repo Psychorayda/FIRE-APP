@@ -15,6 +15,7 @@ import {
   CHINA_WITHDRAWAL_RATE_HINT,
   type FormFieldConfig,
 } from './fire-calc-constants.js';
+import { useCurrency } from '../../hooks/use-currency.js';
 
 interface ScenarioFormProps {
   scenario: FireScenario;
@@ -23,6 +24,7 @@ interface ScenarioFormProps {
 }
 
 export function ScenarioForm({ scenario, onSave, investableBalance }: ScenarioFormProps) {
+  const currency = useCurrency();
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [formData, setFormData] = useState<FireScenario>(scenario);
   const [errors, setErrors] = useState<Partial<Record<keyof FireScenario, string>>>({});
@@ -88,9 +90,9 @@ export function ScenarioForm({ scenario, onSave, investableBalance }: ScenarioFo
     if (field.type === 'percent') return `${basisPointsToPercent(raw as number)}%`;
     if (field.type === 'amount') {
       if (field.key === 'current_portfolio_value' && scenario.auto_sync_assets === 1) {
-        return formatFireAmount(investableBalance ?? 0);
+        return formatFireAmount(investableBalance ?? 0, currency);
       }
-      return formatFireAmount(raw as number);
+      return formatFireAmount(raw as number, currency);
     }
     if (field.type === 'text') return String(raw);
     return String(raw);
@@ -159,7 +161,7 @@ export function ScenarioForm({ scenario, onSave, investableBalance }: ScenarioFo
           {FORM_FIELD_GROUPS.map((group) => (
             <div key={group.title}>
               <h3 className="text-base font-semibold text-gray-900 mb-3">{group.title}</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {group.fields.map((field) => (
                   <div key={field.key} className="flex flex-col">
                     <span className="text-sm text-gray-500 mb-1">{field.label}</span>
@@ -182,13 +184,12 @@ export function ScenarioForm({ scenario, onSave, investableBalance }: ScenarioFo
   // 编辑模式
   // Edit mode
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold text-gray-900">编辑场景</h2>
         <div className="flex gap-2">
           <button
-            type="button"
-            onClick={handleSave}
+            type="submit"
             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             保存
@@ -206,7 +207,7 @@ export function ScenarioForm({ scenario, onSave, investableBalance }: ScenarioFo
         {FORM_FIELD_GROUPS.map((group) => (
           <div key={group.title}>
             <h3 className="text-base font-semibold text-gray-900 mb-3">{group.title}</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {group.fields.map((field) => {
                 const isAutoSyncedAmount =
                   field.key === 'current_portfolio_value' && formData.auto_sync_assets === 1;
@@ -271,6 +272,6 @@ export function ScenarioForm({ scenario, onSave, investableBalance }: ScenarioFo
           </div>
         ))}
       </div>
-    </div>
+    </form>
   );
 }

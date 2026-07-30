@@ -14,6 +14,7 @@ import {
   formatDate,
   sortTransactions,
 } from './transaction-constants.js';
+import { useCurrency } from '../../hooks/use-currency.js';
 
 interface TransactionListTableProps {
   transactions: Transaction[];   // 已筛选未排序
@@ -37,6 +38,7 @@ export function TransactionListTable({
   transactions, loading, accounts, categories, hasActiveFilters, onEdit, onDelete,
 }: TransactionListTableProps) {
   const [sortBy, setSortBy] = useState('date-desc');
+  const currency = useCurrency();
 
   const sortedTxs = useMemo(() => sortTransactions(transactions, sortBy), [transactions, sortBy]);
 
@@ -115,7 +117,7 @@ export function TransactionListTable({
               : 'text-blue-600';
         return (
           <span className={`font-medium ${colorClass}`}>
-            {config.sign}{formatAmount(r.amount)}
+            {config.sign}{formatAmount(r.amount, currency)}
           </span>
         );
       },

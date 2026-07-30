@@ -4,6 +4,7 @@
 
 import type { NetWorthSnapshot } from '@shared/types/index.js';
 import { centsToYuan } from '@shared/utils/money.js';
+import { CURRENCY_SYMBOLS, CURRENCY_LOCALES } from '../transactions/transaction-constants.js';
 
 /** 时间范围配置 */
 // Time range config
@@ -53,14 +54,16 @@ export interface AllocationData {
   hasData: boolean;
 }
 
-/** 格式化元金额为人民币货币字符串（不再除以 100，区别于 formatAmount 处理分） */
-// Format yuan amount as CNY currency string (no /100, unlike formatAmount which handles cents)
-export function formatYuan(yuan: number): string {
-  return new Intl.NumberFormat('zh-CN', {
-    style: 'currency',
-    currency: 'CNY',
+/** 格式化元金额为货币字符串（不再除以 100，区别于 formatAmount 处理分；默认 CNY，可按 base_currency 切换 ¥ / $） */
+// Format yuan amount as currency string (no /100, unlike formatAmount which handles cents; defaults to CNY, switches ¥ / $ per base_currency)
+export function formatYuan(yuan: number, currency: string = 'CNY'): string {
+  const symbol = CURRENCY_SYMBOLS[currency] ?? '¥';
+  const locale = CURRENCY_LOCALES[currency] ?? 'zh-CN';
+  const formatted = new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
-  }).format(yuan);
+    maximumFractionDigits: 2,
+  }).format(Math.abs(yuan));
+  return yuan < 0 ? `-${symbol}${formatted}` : `${symbol}${formatted}`;
 }
 
 /** 按时间范围筛选 snapshots（返回升序） */

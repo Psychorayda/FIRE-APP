@@ -176,7 +176,7 @@ export function SettingsPage() {
       {/* 用户偏好区 / Preferences section */}
       <section>
         <h2 className="text-lg font-semibold text-gray-900 mb-4">用户偏好</h2>
-        <div className="space-y-4 bg-white rounded-md border border-gray-200 p-6">
+        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4 bg-white rounded-md border border-gray-200 p-6">
           <Input
             type="text"
             label="显示名称"
@@ -252,10 +252,10 @@ export function SettingsPage() {
           />
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" size="md" onClick={handleReset} disabled={saving}>重置</Button>
-            <Button variant="primary" size="md" onClick={handleSave} loading={saving}>保存</Button>
+            <Button type="button" variant="secondary" size="md" onClick={handleReset} disabled={saving}>重置</Button>
+            <Button type="submit" variant="primary" size="md" loading={saving}>保存</Button>
           </div>
-        </div>
+        </form>
       </section>
 
       {/* 内置分类区 / System categories section */}
@@ -275,7 +275,7 @@ export function SettingsPage() {
         {loadingCats ? (
           <p className="text-sm text-gray-500">加载中...</p>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-white rounded-md border border-gray-200 p-4">
               <h3 className="text-sm font-medium text-gray-700 mb-3">支出分类 ({expenseCats.length})</h3>
               <ul className="space-y-1">

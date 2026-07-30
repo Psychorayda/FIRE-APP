@@ -10,7 +10,8 @@ import { Modal } from '../base/Modal.js';
 import { Input } from '../base/Input.js';
 import { Select } from '../base/Select.js';
 import { Button } from '../base/Button.js';
-import { TRANSACTION_TYPE_OPTIONS, formatDate } from './transaction-constants.js';
+import { TRANSACTION_TYPE_OPTIONS, formatDate, CURRENCY_SYMBOLS } from './transaction-constants.js';
+import { useCurrency } from '../../hooks/use-currency.js';
 
 interface TransactionFormModalProps {
   open: boolean;
@@ -34,6 +35,8 @@ interface FormErrors {
 export function TransactionFormModal({
   open, mode, transaction, userId, accounts, categories, loading, onSubmit, onClose,
 }: TransactionFormModalProps) {
+  const currency = useCurrency();
+  const currencySymbol = CURRENCY_SYMBOLS[currency] ?? '¥';
   const [transactionType, setTransactionType] = useState<TransactionType>('expense');
   const [accountId, setAccountId] = useState('');
   const [toAccountId, setToAccountId] = useState('');
@@ -129,14 +132,8 @@ export function TransactionFormModal({
       title={mode === 'create' ? '新增交易' : '编辑交易'}
       onClose={onClose}
       width={520}
-      footer={
-        <>
-          <Button variant="secondary" size="md" onClick={onClose} disabled={loading}>取消</Button>
-          <Button variant="primary" size="md" loading={loading} onClick={handleSubmit}>确定</Button>
-        </>
-      }
     >
-      <div className="space-y-4">
+      <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-4">
         {/* 交易类型 / Transaction type */}
         <Select
           label="交易类型"
@@ -184,7 +181,7 @@ export function TransactionFormModal({
           type="number"
           value={amount}
           required
-          prefix="¥"
+          prefix={currencySymbol}
           error={errors.amount}
           placeholder="请输入金额"
           onChange={setAmount}
@@ -208,7 +205,12 @@ export function TransactionFormModal({
           placeholder="可选，交易备注"
           onChange={setDescription}
         />
-      </div>
+
+        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          <Button type="button" variant="secondary" size="md" onClick={onClose} disabled={loading}>取消</Button>
+          <Button type="submit" variant="primary" size="md" loading={loading}>{mode === 'edit' ? '保存' : '确定'}</Button>
+        </div>
+      </form>
     </Modal>
   );
 }
