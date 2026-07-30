@@ -328,7 +328,10 @@ describe('DashboardPage', () => {
 
   it('渲染页头"仪表盘"', async () => {
     (window.dataAccess.account.list as any).mockResolvedValue([]);
-    (window.dataAccess.tx.listByUser as any).mockResolvedValue([]);
+    // 新分页 API：recent + monthlyOverview 取代 listByUser
+    // New paginated API: recent + monthlyOverview replace listByUser
+    (window.dataAccess.tx.recent as any).mockResolvedValue([]);
+    (window.dataAccess.tx.monthlyOverview as any).mockResolvedValue({ income: 0, expense: 0, transfer: 0 });
     (window.dataAccess.snapshot.list as any).mockResolvedValue([]);
     (window.dataAccess.snapshot.generateMonthly as any).mockResolvedValue(null);
 
@@ -339,7 +342,8 @@ describe('DashboardPage', () => {
 
   it('加载中显示加载状态', () => {
     (window.dataAccess.account.list as any).mockReturnValue(new Promise(() => {}));
-    (window.dataAccess.tx.listByUser as any).mockReturnValue(new Promise(() => {}));
+    (window.dataAccess.tx.recent as any).mockReturnValue(new Promise(() => {}));
+    (window.dataAccess.tx.monthlyOverview as any).mockReturnValue(new Promise(() => {}));
     (window.dataAccess.snapshot.list as any).mockReturnValue(new Promise(() => {}));
 
     render(<DashboardPage />);
@@ -362,7 +366,10 @@ describe('DashboardPage', () => {
     ];
 
     (window.dataAccess.account.list as any).mockResolvedValue(accounts);
-    (window.dataAccess.tx.listByUser as any).mockResolvedValue(transactions);
+    // recent 返回近期交易列表 / recent returns recent transactions list
+    (window.dataAccess.tx.recent as any).mockResolvedValue(transactions);
+    // monthlyOverview 返回 SQL 聚合结果 / monthlyOverview returns SQL aggregation result
+    (window.dataAccess.tx.monthlyOverview as any).mockResolvedValue({ income: 50000, expense: 0, transfer: 0 });
     (window.dataAccess.snapshot.list as any).mockResolvedValue(snapshots);
     (window.dataAccess.snapshot.generateMonthly as any).mockResolvedValue(null);
 
@@ -379,7 +386,8 @@ describe('DashboardPage', () => {
 
   it('数据加载失败显示错误提示', async () => {
     (window.dataAccess.account.list as any).mockRejectedValue(new Error('网络错误'));
-    (window.dataAccess.tx.listByUser as any).mockResolvedValue([]);
+    (window.dataAccess.tx.recent as any).mockResolvedValue([]);
+    (window.dataAccess.tx.monthlyOverview as any).mockResolvedValue({ income: 0, expense: 0, transfer: 0 });
     (window.dataAccess.snapshot.list as any).mockResolvedValue([]);
 
     render(<DashboardPage />);
@@ -389,7 +397,8 @@ describe('DashboardPage', () => {
 
   it('调用 generateMonthlySnapshot', async () => {
     (window.dataAccess.account.list as any).mockResolvedValue([]);
-    (window.dataAccess.tx.listByUser as any).mockResolvedValue([]);
+    (window.dataAccess.tx.recent as any).mockResolvedValue([]);
+    (window.dataAccess.tx.monthlyOverview as any).mockResolvedValue({ income: 0, expense: 0, transfer: 0 });
     (window.dataAccess.snapshot.list as any).mockResolvedValue([]);
     (window.dataAccess.snapshot.generateMonthly as any).mockResolvedValue(null);
 

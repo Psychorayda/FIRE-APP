@@ -1,6 +1,7 @@
 // 交易记录页 / Transactions page
 // 组合概览卡片、筛选、列表表格、表单弹窗、删除确认，完成交易 CRUD
-// 复刻 AccountsPage 模式：store 错误处理 + useEffect 加载 + getState().error 判定成功
+// 服务端分页：筛选/分页下推到 SQL，前端只持有当前页
+// Server-side pagination: filters/paging pushed to SQL, renderer holds current page only
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Transaction } from '@shared/types/index.js';
@@ -19,19 +20,27 @@ import { TransactionListTable } from '../components/transactions/TransactionList
 import { TransactionFormModal } from '../components/transactions/TransactionFormModal.js';
 import {
   type TransactionFilters as Filters,
-  filterTransactions, computeOverview, hasActiveFilters,
+  hasActiveFilters,
 } from '../components/transactions/transaction-constants.js';
 
 // 空筛选状态 / Empty filter state
 const EMPTY_FILTERS: Filters = { type: '', account_id: '', category_id: '', dateFrom: '', dateTo: '' };
+// 每页条数 / Page size
+const PAGE_SIZE = 50;
+// 一天毫秒数，用于 dateTo 含当天 / One day in ms, for dateTo inclusive
+const ONE_DAY_MS = 86400000;
 
 export function TransactionsPage() {
-  const { transactions, loading, error, fetchTransactions, createTransaction, editTransaction, deleteTransaction } = useTransactionStore();
+  const {
+    pagedTransactions, total, loading, error,
+    fetchTransactionPage, createTransaction, editTransaction, deleteTransaction,
+  } = useTransactionStore();
   const { accounts, fetchAccounts } = useAccountStore();
   const { categories, fetchCategories } = useCategoryStore();
   const { currentUser } = useAppStore();
   const { showSuccess, showError } = useToastStore();
 
+  const [page, setPage] = useState(0);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
@@ -39,20 +48,42 @@ export function TransactionsPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
 
-  // 派生：筛选后的交易 + 是否有激活筛选
-  // Derived: filtered transactions + whether filters are active
-  const filtered = useMemo(() => filterTransactions(transactions, filters), [transactions, filters]);
   const activeFilters = hasActiveFilters(filters);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  // 初始加载交易、账户、分类
-  // Initial load: transactions, accounts, categories
+  // 当前页可见交易：服务端筛选后，category_id 由前端在当前页内过滤（SQL 未支持下推）
+  // Visible transactions: server-filtered, category_id applied client-side on current page
+  // (SQL does not support category filter push-down yet)
+  const visibleTransactions = useMemo(() => {
+    if (!filters.category_id) return pagedTransactions;
+    return pagedTransactions.filter((t) => t.category_id === filters.category_id);
+  }, [pagedTransactions, filters.category_id]);
+
+  // 概览由 TransactionOverviewCards 内部基于 visibleTransactions 计算
+  // Overview is computed inside TransactionOverviewCards from visibleTransactions
+
+  // 拉取当前页交易、账户、分类
+  // Fetch current page of transactions, accounts, categories
   useEffect(() => {
-    if (currentUser) {
-      fetchTransactions(currentUser.id);
-      fetchAccounts(currentUser.id);
-      fetchCategories(currentUser.id);
-    }
-  }, [currentUser, fetchTransactions, fetchAccounts, fetchCategories]);
+    if (!currentUser) return;
+    fetchAccounts(currentUser.id);
+    fetchCategories(currentUser.id);
+  }, [currentUser, fetchAccounts, fetchCategories]);
+
+  // 分页/筛选变化 → 服务端拉取
+  // Pagination/filter change → server fetch
+  useEffect(() => {
+    if (!currentUser) return;
+    fetchTransactionPage(currentUser.id, {
+      limit: PAGE_SIZE,
+      offset: page * PAGE_SIZE,
+      type: (filters.type || undefined) as 'income' | 'expense' | 'transfer' | 'initial_balance' | undefined,
+      accountId: filters.account_id || undefined,
+      dateFrom: filters.dateFrom ? new Date(filters.dateFrom).getTime() : undefined,
+      // dateTo 含当天：截止当日 23:59:59.999 / dateTo inclusive: end of day
+      dateTo: filters.dateTo ? new Date(filters.dateTo).getTime() + ONE_DAY_MS - 1 : undefined,
+    });
+  }, [currentUser, page, filters, fetchTransactionPage]);
 
   // 监听 store error，自动弹出错误 Toast
   // Monitor store error, auto show error toast
@@ -84,16 +115,25 @@ export function TransactionsPage() {
     setDeleteTarget(null);
   };
 
-  const handleResetFilters = () => setFilters(EMPTY_FILTERS);
+  // 筛选变化：重置到第一页 / Filter change: reset to first page
+  const handleFiltersChange = (f: Filters) => {
+    setPage(0);
+    setFilters(f);
+  };
+
+  const handleResetFilters = () => {
+    setPage(0);
+    setFilters(EMPTY_FILTERS);
+  };
 
   // 表单提交：create 调 createTransaction，edit 调 editTransaction
   // store 方法内部捕获错误并写入 state.error（不抛出），故用 getState().error 判定成功/失败
   const handleSubmit = async (input: CreateTransactionInput | EditTransactionInput) => {
     if (!currentUser) return;
     if (modalMode === 'create') {
-      await createTransaction(input as CreateTransactionInput, currentUser.id);
+      await createTransaction(currentUser.id, input as CreateTransactionInput);
     } else if (editingTransaction) {
-      await editTransaction(editingTransaction.id, input as EditTransactionInput, currentUser.id);
+      await editTransaction(currentUser.id, editingTransaction.id, input as EditTransactionInput);
     }
     if (!useTransactionStore.getState().error) {
       setModalOpen(false);
@@ -104,7 +144,7 @@ export function TransactionsPage() {
   const handleDelete = async () => {
     if (!currentUser || !deleteTarget) return;
     setConfirmOpen(false);
-    await deleteTransaction(deleteTarget.id, currentUser.id);
+    await deleteTransaction(currentUser.id, deleteTarget.id);
     if (!useTransactionStore.getState().error) {
       showSuccess('交易已删除');
     }
@@ -118,10 +158,10 @@ export function TransactionsPage() {
         extra={<Button variant="primary" size="md" onClick={openCreateModal}>+ 新增交易</Button>}
       />
       <div className="p-8 space-y-6">
-        {/* 概览卡：filtered.length === 0 时隐藏 */}
-        {/* Overview cards: hidden when filtered.length === 0 */}
-        {filtered.length > 0 && (
-          <TransactionOverviewCards transactions={filtered} />
+        {/* 概览卡：基于当前页可见交易 */}
+        {/* Overview cards: based on visible transactions of current page */}
+        {visibleTransactions.length > 0 && (
+          <TransactionOverviewCards transactions={visibleTransactions} />
         )}
 
         {/* 筛选 / Filters */}
@@ -129,13 +169,13 @@ export function TransactionsPage() {
           filters={filters}
           accounts={accounts}
           categories={categories}
-          onFiltersChange={setFilters}
+          onFiltersChange={handleFiltersChange}
           onReset={handleResetFilters}
         />
 
         {/* 列表表格 / List table */}
         <TransactionListTable
-          transactions={filtered}
+          transactions={visibleTransactions}
           loading={loading}
           accounts={accounts}
           categories={categories}
@@ -143,6 +183,32 @@ export function TransactionsPage() {
           onEdit={openEditModal}
           onDelete={openConfirm}
         />
+
+        {/* 分页控件 / Pagination controls */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-500">共 {total} 条</span>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0 || loading}
+            >
+              上一页
+            </Button>
+            <span className="text-sm text-gray-600">
+              第 {page + 1} / {totalPages} 页
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page + 1 >= totalPages || loading}
+            >
+              下一页
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* 表单弹窗 / Form modal */}

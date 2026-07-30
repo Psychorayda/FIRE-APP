@@ -11,6 +11,11 @@ import type { CreateCategoryInput } from '@shared/models/category.js';
 import type { CreateRecurringInput } from '@shared/models/recurring.js';
 import type { CreateScenarioInput } from '@shared/models/scenario.js';
 import type { CreateTransactionInput, EditTransactionInput } from '@shared/services/transaction-service.js';
+import type {
+  TransactionPageParams,
+  TransactionPage,
+  MonthlyOverview,
+} from '@shared/models/transaction-queries.js';
 import type { ProjectionResult } from '@shared/services/fire-calc.js';
 import type { ExportTableName } from '@shared/services/export-service.js';
 import type { ImportResult } from '@shared/services/import-service.js';
@@ -56,7 +61,10 @@ export interface DataAccessAPI {
   tx: {
     get(id: string): Promise<Transaction | null>;
     getById(id: string): Promise<Transaction | null>;
-    listByUser(userId: string): Promise<Transaction[]>;
+    // 分页查询：筛选/排序下推到 SQL / Paginated query: filters/order pushed to SQL
+    page(userId: string, params: TransactionPageParams): Promise<TransactionPage>;
+    recent(userId: string, limit: number): Promise<Transaction[]>;
+    monthlyOverview(userId: string, yearMonth: string): Promise<MonthlyOverview>;
     create(input: CreateTransactionInput): Promise<Transaction>;
     edit(id: string, input: EditTransactionInput): Promise<Transaction>;
     delete(id: string): Promise<void>;

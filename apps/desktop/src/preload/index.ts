@@ -43,7 +43,10 @@ const dataAccess = {
   tx: {
     get: (id: string) => ipcRenderer.invoke('db:tx:get', id),
     getById: (id: string) => ipcRenderer.invoke('db:tx:getById', id),
-    listByUser: (userId: string) => ipcRenderer.invoke('db:tx:listByUser', userId),
+    // 分页查询：筛选/排序下推到 SQL / Paginated query: filters/order pushed to SQL
+    page: (userId: string, params: unknown) => ipcRenderer.invoke('db:tx:page', userId, params),
+    recent: (userId: string, limit: number) => ipcRenderer.invoke('db:tx:recent', userId, limit),
+    monthlyOverview: (userId: string, yearMonth: string) => ipcRenderer.invoke('db:tx:monthlyOverview', userId, yearMonth),
     create: (input: unknown) => ipcRenderer.invoke('db:tx:create', input),
     edit: (id: string, input: unknown) => ipcRenderer.invoke('db:tx:edit', id, input),
     delete: (id: string) => ipcRenderer.invoke('db:tx:delete', id),

@@ -8,6 +8,7 @@ import type { CreateCategoryInput } from '@shared/models/category.js';
 import type { CreateRecurringInput } from '@shared/models/recurring.js';
 import type { CreateScenarioInput } from '@shared/models/scenario.js';
 import type { CreateTransactionInput, EditTransactionInput } from '@shared/services/transaction-service.js';
+import type { TransactionPageParams } from '@shared/models/transaction-queries.js';
 import type {
   User, Account, Category, Transaction, RecurringTransaction,
   NetWorthSnapshot, FireScenario, CategoryType,
@@ -53,7 +54,10 @@ export class IpcDataAccess implements DataAccessPort {
   // ===== Transaction =====
   getTransaction(id: string) { return window.dataAccess.tx.get(id); }
   getTransactionById(id: string) { return window.dataAccess.tx.getById(id); }
-  getTransactionsByUser(userId: string) { return window.dataAccess.tx.listByUser(userId); }
+  // 分页查询：筛选/排序下推到 SQL / Paginated query: filters/order pushed to SQL
+  getTransactionsPage(userId: string, params: TransactionPageParams) { return window.dataAccess.tx.page(userId, params); }
+  getRecentTransactions(userId: string, limit: number) { return window.dataAccess.tx.recent(userId, limit); }
+  getMonthlyOverview(userId: string, yearMonth: string) { return window.dataAccess.tx.monthlyOverview(userId, yearMonth); }
   createTransaction(input: CreateTransactionInput) { return window.dataAccess.tx.create(input); }
   editTransaction(id: string, input: EditTransactionInput) { return window.dataAccess.tx.edit(id, input); }
   deleteTransaction(id: string) { return window.dataAccess.tx.delete(id); }

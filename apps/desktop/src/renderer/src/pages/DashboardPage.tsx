@@ -1,16 +1,17 @@
 // 仪表盘页 / Dashboard page
 // 信息聚合中心：净资产 3 卡 + 本月收支 3 卡 + 净资产趋势图 + 近期交易表
 // Aggregation hub: net worth cards + monthly overview + trend chart + recent transactions
+// 数据来自 SQL 聚合查询（recent + monthlyOverview），不再前端全量计算
+// Data sourced from SQL aggregation queries (recent + monthlyOverview), no frontend full-scan
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Account, Transaction, NetWorthSnapshot } from '@shared/types/index.js';
+import type { MonthlyOverview } from '@shared/models/transaction-queries.js';
 import { useAppStore } from '../stores/app-store.js';
 import { dataAccess } from '../data/data-access.js';
-import { computeOverview } from '../components/transactions/transaction-constants.js';
+import type { TransactionOverview } from '../components/transactions/transaction-constants.js';
 import {
   computeNetWorthSummary,
-  filterCurrentMonthTransactions,
-  getRecentTransactions,
   formatTrendData,
 } from '../components/dashboard/dashboard-constants.js';
 import { NetWorthCards } from '../components/dashboard/NetWorthCards.js';
@@ -18,29 +19,46 @@ import { MonthlyOverviewCards } from '../components/dashboard/MonthlyOverviewCar
 import { NetWorthTrendChart } from '../components/dashboard/NetWorthTrendChart.js';
 import { RecentTransactions } from '../components/dashboard/RecentTransactions.js';
 
+// 当前月份 YYYY-MM（本地时区）/ Current month YYYY-MM (local timezone)
+function currentYearMonth(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// SQL 聚合结果 → TransactionOverview（补 balance 字段）
+// SQL aggregation result → TransactionOverview (fill balance field)
+function toOverview(m: MonthlyOverview): TransactionOverview {
+  return { ...m, balance: m.income - m.expense };
+}
+
 export function DashboardPage() {
   const currentUser = useAppStore((s) => s.currentUser);
 
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [snapshots, setSnapshots] = useState<NetWorthSnapshot[]>([]);
+  const [monthlyOverview, setMonthlyOverview] = useState<TransactionOverview>({
+    income: 0, expense: 0, transfer: 0, balance: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // 拉数据 + 自动生成当月快照 / Fetch data + auto-generate monthly snapshot
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser?.id) return;
     const userId = currentUser.id;
 
     Promise.all([
       dataAccess.getAccounts(userId),
-      dataAccess.getTransactionsByUser(userId),
+      dataAccess.getRecentTransactions(userId, 10),
       dataAccess.getSnapshots(userId),
+      dataAccess.getMonthlyOverview(userId, currentYearMonth()),
     ])
-      .then(([accs, txs, snaps]) => {
+      .then(([accs, recent, snaps, overview]) => {
         setAccounts(accs);
-        setTransactions(txs);
+        setRecentTransactions(recent);
         setSnapshots(snaps);
+        setMonthlyOverview(toOverview(overview));
       })
       .catch(() => setError('数据加载失败，请重试'))
       .finally(() => setLoading(false));
@@ -58,15 +76,7 @@ export function DashboardPage() {
 
   // 派生数据 / Derived data
   const netWorthSummary = useMemo(() => computeNetWorthSummary(accounts), [accounts]);
-
-  const monthlyOverview = useMemo(() => {
-    const monthlyTxs = filterCurrentMonthTransactions(transactions);
-    return computeOverview(monthlyTxs);
-  }, [transactions]);
-
   const trendData = useMemo(() => formatTrendData(snapshots), [snapshots]);
-
-  const recentTransactions = useMemo(() => getRecentTransactions(transactions, 10), [transactions]);
 
   return (
     <div className="p-8 space-y-6">

@@ -22,7 +22,7 @@ describe('vitest 配置冒烟测试', () => {
 
   it('window.dataAccess mock 已注入', () => {
     expect(window.dataAccess).toBeDefined();
-    expect(window.dataAccess.tx.listByUser).toBeDefined();
-    expect(typeof window.dataAccess.tx.listByUser).toBe('function');
+    expect(window.dataAccess.tx.page).toBeDefined();
+    expect(typeof window.dataAccess.tx.page).toBe('function');
   });
 });

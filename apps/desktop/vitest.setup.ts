@@ -53,7 +53,10 @@ if (typeof window !== 'undefined') {
   tx: {
     get: fn(),
     getById: fn(),
-    listByUser: fn(),
+    // 分页查询 mock / Paginated query mock
+    page: fn(),
+    recent: fn(),
+    monthlyOverview: fn(),
     create: fn(),
     edit: fn(),
     delete: fn(),
