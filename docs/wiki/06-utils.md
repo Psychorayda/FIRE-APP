@@ -1,6 +1,6 @@
 # 06-utils.md — 工具模块
 
-> **最后更新**: 2026-07-29
+> **最后更新**: 2026-07-30
 > **对应代码**: `packages/shared/src/utils/`
 > **导航**: [← 返回主页](CODE_WIKI.md) | [上一节](05-services.md) | [下一节](07-tests.md)
 
@@ -35,16 +35,24 @@
 
 **用途**：元转分（用户输入的元转为数据库存储的整数分）
 
-**实现**：两阶段取整
+**实现**：两阶段取整 + 负数对称处理
 
 ```typescript
-return Math.round(Math.round(yuan * 1000) / 10);
+const milliCents = Math.round(yuan * 1000);
+const sign = milliCents < 0 ? -1 : 1;
+return sign * Math.round(Math.abs(milliCents) / 10);
 ```
 
 **浮点误差陷阱说明**：直接 `Math.round(yuan * 100)` 会因 IEEE 754 浮点误差丢分。例如 `1.005 * 100` 在浮点下实际为 `100.4999...`，直接取整得 100 而非期望的 101。两阶段取整先到毫（×1000）再到分（÷10）规避此问题：
 
 1. 第一阶段：`Math.round(yuan * 1000)` 把元转成整数毫，避免小数运算
 2. 第二阶段：`/ 10` 转回分，再 `Math.round` 消除除法可能引入的尾差
+
+**负数对称处理说明**：JavaScript 的 `Math.round` 对 ±0.5 一律向 `+Infinity` 方向舍入，导致负数场景四舍五入不对称（如 `-1.005` 期望 `-101` 分，但朴素两阶段取整会得到 `-100`）。这对负债账户金额精度不可接受。代码通过对绝对值舍入再恢复符号，保证"四舍五入远离 0"语义在正负两侧一致：
+
+1. 取 `milliCents` 的符号 `sign`（-1 或 1）
+2. 对 `Math.abs(milliCents) / 10` 取整（此时正数语义正确）
+3. 乘回 `sign` 恢复符号
 
 ### 2.2 `centsToYuan(cents: number): number`
 
@@ -308,4 +316,84 @@ UTC 约定在以下函数中体现：
 
 - `nowMs()` 返回的 `Date.now()` 本身是时区无关的 Unix 毫秒，无需 UTC 化
 - 业务层（models / services）不应直接调用 `new Date().getFullYear()` 等本地时间方法做年月判断，应统一通过 `time.ts` 的函数
-- 未来若引入 UI 层展示"本地时间"，应在展示层做 UTC→本地的转换，存储与计算层始终保持 UTC
+- 未来若引入 UI 展示"本地时间"，应在展示层做 UTC→本地的转换，存储与计算层始终保持 UTC
+
+---
+
+## 6. renderer 侧 currency 工具（跨层引用）
+
+> 本节描述 renderer 层的货币展示工具。这些代码位于 `apps/desktop/src/renderer/` 而非 `packages/shared/src/utils/`，但与 utils 主题强相关（且 `formatAmount` 内部反向调用了 shared 的 `centsToYuan`），故在此一并归档。
+
+### 6.1 `useCurrency()` Hook
+
+源码：[use-currency.ts](file:///workspace/apps/desktop/src/renderer/src/hooks/use-currency.ts)
+
+**签名**：
+
+```typescript
+export function useCurrency(): string
+```
+
+**用途**：从 app store 读取当前登录用户的 `base_currency`，未登录时回退到 `'CNY'`。
+
+**实现**：
+
+```typescript
+return useAppStore((s) => s.currentUser?.base_currency ?? 'CNY');
+```
+
+**说明**：
+- **返回值是货币代码字符串**（如 `'CNY'` / `'USD'`），不是格式化函数
+- 调用方拿到货币代码后，通常作为第二参数传给 `formatAmount(cents, currency)` 完成展示格式化
+- 未登录场景（`currentUser` 为 `undefined`）回退到 `'CNY'`，保证登录前 UI 也能展示金额
+- 仅在 React 组件内可用（依赖 `useAppStore` Hook）
+
+### 6.2 `formatAmount(cents, currency)`
+
+源码：[transaction-constants.ts:57](file:///workspace/apps/desktop/src/renderer/src/components/transactions/transaction-constants.ts#L57)
+
+**签名**：
+
+```typescript
+export function formatAmount(cents: number, currency: string = 'CNY'): string
+```
+
+**用途**：把整数分转为元，并按 `currency` 选择符号与 locale 格式化为货币字符串。
+
+**实现**：
+
+```typescript
+const symbol = CURRENCY_SYMBOLS[currency] ?? '¥';
+const locale = CURRENCY_LOCALES[currency] ?? 'zh-CN';
+const yuan = centsToYuan(cents);
+const formatted = new Intl.NumberFormat(locale, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+}).format(Math.abs(yuan));
+return yuan < 0 ? `-${symbol}${formatted}` : `${symbol}${formatted}`;
+```
+
+**说明**：
+- 内部调用 shared utils 的 `centsToYuan`（[money.ts:15](file:///workspace/packages/shared/src/utils/money.ts#L15)）完成"分→元"换算，是 renderer → shared 的跨层引用
+- 使用 `Intl.NumberFormat` 按 locale 千分位格式化，固定 2 位小数
+- **负号前置**：先对 `Math.abs(yuan)` 格式化，再在负数时补 `-` 前缀，避免出现 `-$` / `-¥` 符号顺序错乱
+- 未知 `currency` 兜底 `¥` / `zh-CN`，不会抛错
+
+### 6.3 `CURRENCY_SYMBOLS` / `CURRENCY_LOCALES` 常量
+
+源码：[transaction-constants.ts:51-53](file:///workspace/apps/desktop/src/renderer/src/components/transactions/transaction-constants.ts#L51-L53)
+
+```typescript
+export const CURRENCY_SYMBOLS: Record<string, string> = { CNY: '¥', USD: '$' };
+export const CURRENCY_LOCALES: Record<string, string> = { CNY: 'zh-CN', USD: 'en-US' };
+```
+
+| 货币代码 | 符号 | Locale |
+|----------|------|--------|
+| CNY | ¥ | zh-CN |
+| USD | $ | en-US |
+
+**说明**：
+- 两张映射的 key 集合需保持一致（每支持的货币必须同时有符号和 locale）
+- 新增货币需同时扩展两张表，否则 `formatAmount` 会走 `??` 兜底分支回落到 CNY 风格
+- 当前仅覆盖 CNY / USD 两种货币，与 `useCurrency` 的回退值 `'CNY'` 对齐
