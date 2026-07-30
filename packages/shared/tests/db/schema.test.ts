@@ -2,6 +2,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createDatabase, closeDatabase } from '../../src/db/connection.js';
 import { initSchema, TABLE_NAMES } from '../../src/db/schema.js';
+import { createUser } from '../../src/models/user.js';
+import { createAccount } from '../../src/models/account.js';
 import type { Database as DatabaseType } from 'better-sqlite3';
 
 describe('schema', () => {
@@ -133,5 +135,44 @@ describe('schema', () => {
         VALUES ('s2', 'u1', 2000, '2026-07', 100, 200, 300, -50, 550, 0, 2000, 0)
       `).run();
     }).toThrow();
+  });
+
+  // ===== CHECK 约束 / CHECK constraints (Task D4) =====
+  describe('CHECK constraints', () => {
+    let userId: string;
+    let accountId: string;
+
+    beforeEach(() => {
+      userId = 'check-user-id';
+      createUser(db, { id: userId, display_name: 'CHECK 测试' });
+      const acc = createAccount(db, {
+        user_id: userId, name: '活期', asset_class: 'liquid', account_type: 'checking',
+      });
+      accountId = acc.id;
+    });
+
+    it('transactions: transfer 无 to_account_id 被拒绝', () => {
+      expect(() => {
+        db.prepare(`INSERT INTO transactions (id, user_id, account_id, transaction_type, amount, transaction_date, description, sync_version, updated_at, deleted_flag) VALUES (?, ?, ?, 'transfer', 1000, 1000, NULL, 0, 0, 0)`).run('tx1', userId, accountId);
+      }).toThrow(/CHECK constraint failed/);
+    });
+
+    it('transactions: transfer to_account_id == account_id 被拒绝', () => {
+      expect(() => {
+        db.prepare(`INSERT INTO transactions (id, user_id, account_id, to_account_id, transaction_type, amount, transaction_date, description, sync_version, updated_at, deleted_flag) VALUES (?, ?, ?, ?, 'transfer', 1000, 1000, NULL, 0, 0, 0)`).run('tx2', userId, accountId, accountId);
+      }).toThrow(/CHECK constraint failed/);
+    });
+
+    it('recurring_transactions: interval=0 被拒绝', () => {
+      expect(() => {
+        db.prepare(`INSERT INTO recurring_transactions (id, user_id, account_id, transaction_type, amount, frequency, interval, start_date, next_due_date, sync_version, updated_at, deleted_flag) VALUES (?, ?, ?, 'income', 1000, 'monthly', 0, 1000, 1000, 0, 0, 0)`).run('r1', userId, accountId);
+      }).toThrow(/CHECK constraint failed/);
+    });
+
+    it('accounts: liability 正余额被拒绝', () => {
+      expect(() => {
+        db.prepare(`INSERT INTO accounts (id, user_id, name, asset_class, account_type, current_balance, last_updated, sync_version, updated_at, deleted_flag) VALUES (?, ?, ?, 'liability', 'credit_card', 5000, 0, 0, 0, 0)`).run('acc-liab', userId, '信用卡');
+      }).toThrow(/CHECK constraint failed/);
+    });
   });
 });

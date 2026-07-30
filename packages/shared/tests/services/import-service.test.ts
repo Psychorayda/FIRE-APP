@@ -33,7 +33,11 @@ describe('import-service JSON', () => {
     const sourceDb = createDatabase(':memory:');
     initSchema(sourceDb);
     createUser(sourceDb, { id: 'other-user', display_name: '源用户' });
-    seedCategories(sourceDb, 'other-user');
+    // 不在 sourceDb 中 seedCategories：目标库已 seed 18 个系统分类，导入同名同 type 但不同 ID 的分类
+    // 会触发 idx_cat_unique_active 偏唯一索引冲突。本测试聚焦"新账户 INSERT"语义。
+    // Do not seedCategories in sourceDb: target already has 18 system categories with same (name, type);
+    // importing same-name categories with different IDs would violate idx_cat_unique_active partial unique index.
+    // This test focuses on the "new account INSERT" semantics.
     createAccount(sourceDb, { user_id: 'other-user', name: '工行', asset_class: 'liquid', account_type: 'savings' });
     const envelope = buildExportEnvelope(sourceDb, 'other-user', '0.8.0');
     closeDatabase(sourceDb);

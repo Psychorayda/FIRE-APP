@@ -40,7 +40,7 @@ const DDL_STATEMENTS: string[] = [
       'real_estate', 'vehicle',
       'credit_card', 'loan', 'mortgage'
     )),
-    current_balance INTEGER NOT NULL DEFAULT 0,
+    current_balance INTEGER NOT NULL DEFAULT 0 CHECK (asset_class != 'liability' OR current_balance <= 0),
     last_updated INTEGER NOT NULL,
     display_order INTEGER NOT NULL DEFAULT 0,
     note TEXT,
@@ -84,7 +84,9 @@ const DDL_STATEMENTS: string[] = [
     description TEXT,
     sync_version INTEGER NOT NULL DEFAULT 0,
     updated_at INTEGER NOT NULL,
-    deleted_flag INTEGER NOT NULL DEFAULT 0
+    deleted_flag INTEGER NOT NULL DEFAULT 0,
+    CHECK (transaction_type != 'transfer' OR to_account_id IS NOT NULL),
+    CHECK (to_account_id IS NULL OR to_account_id != account_id)
   )`,
 
   // 5. recurring_transactions 表
@@ -97,7 +99,7 @@ const DDL_STATEMENTS: string[] = [
     transaction_type TEXT NOT NULL CHECK (transaction_type IN ('income', 'expense', 'transfer')),
     amount INTEGER NOT NULL CHECK (amount > 0),
     frequency TEXT NOT NULL CHECK (frequency IN ('daily', 'weekly', 'monthly', 'yearly')),
-    interval INTEGER NOT NULL DEFAULT 1,
+    interval INTEGER NOT NULL DEFAULT 1 CHECK (interval > 0),
     start_date INTEGER NOT NULL,
     end_date INTEGER,
     next_due_date INTEGER NOT NULL CHECK (next_due_date >= start_date),
@@ -107,7 +109,8 @@ const DDL_STATEMENTS: string[] = [
     auto_create INTEGER NOT NULL DEFAULT 1,
     sync_version INTEGER NOT NULL DEFAULT 0,
     updated_at INTEGER NOT NULL,
-    deleted_flag INTEGER NOT NULL DEFAULT 0
+    deleted_flag INTEGER NOT NULL DEFAULT 0,
+    CHECK (end_date IS NULL OR end_date >= start_date)
   )`,
 
   // 6. net_worth_snapshots 表
@@ -133,17 +136,17 @@ const DDL_STATEMENTS: string[] = [
     user_id TEXT NOT NULL REFERENCES users(id),
     name TEXT NOT NULL,
     description TEXT,
-    current_age INTEGER NOT NULL,
+    current_age INTEGER NOT NULL CHECK (current_age >= 0),
     retirement_age INTEGER NOT NULL CHECK (retirement_age > current_age),
-    current_portfolio_value INTEGER NOT NULL DEFAULT 0,
+    current_portfolio_value INTEGER NOT NULL DEFAULT 0 CHECK (current_portfolio_value >= 0),
     auto_sync_assets INTEGER NOT NULL DEFAULT 1,
-    monthly_savings INTEGER NOT NULL DEFAULT 0,
-    annual_expenses INTEGER NOT NULL,
-    expected_return_rate INTEGER NOT NULL,
-    inflation_rate INTEGER NOT NULL DEFAULT 300,
+    monthly_savings INTEGER NOT NULL DEFAULT 0 CHECK (monthly_savings >= 0),
+    annual_expenses INTEGER NOT NULL CHECK (annual_expenses > 0),
+    expected_return_rate INTEGER NOT NULL CHECK (expected_return_rate BETWEEN -1000 AND 5000),
+    inflation_rate INTEGER NOT NULL DEFAULT 300 CHECK (inflation_rate BETWEEN -1000 AND 5000),
     withdrawal_rate INTEGER NOT NULL CHECK (withdrawal_rate BETWEEN 200 AND 600),
-    retirement_years INTEGER NOT NULL DEFAULT 30,
-    post_retirement_monthly_income INTEGER NOT NULL DEFAULT 0,
+    retirement_years INTEGER NOT NULL DEFAULT 30 CHECK (retirement_years > 0),
+    post_retirement_monthly_income INTEGER NOT NULL DEFAULT 0 CHECK (post_retirement_monthly_income >= 0),
     is_china_market INTEGER NOT NULL DEFAULT 1,
     is_active INTEGER NOT NULL DEFAULT 1,
     sync_version INTEGER NOT NULL DEFAULT 0,
@@ -158,6 +161,9 @@ const DDL_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_tx_recurring ON transactions(recurring_id)`,
   `CREATE INDEX IF NOT EXISTS idx_acc_user ON accounts(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_cat_user ON categories(user_id)`,
+  // 偏唯一索引：同一用户下未删除的 (name, type) 唯一，软删除记录不参与去重
+  // Partial unique index: (user_id, name, type) unique among non-deleted rows only.
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_cat_unique_active ON categories(user_id, name, type) WHERE deleted_flag = 0`,
   `CREATE INDEX IF NOT EXISTS idx_recur_user ON recurring_transactions(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_snap_user ON net_worth_snapshots(user_id, snapshot_date DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_fire_user ON fire_scenarios(user_id)`,

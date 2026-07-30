@@ -41,8 +41,10 @@ export function getActiveRecurring(db: DatabaseType, userId: string): RecurringT
   return db.prepare('SELECT * FROM recurring_transactions WHERE user_id = ? AND is_active = 1 AND deleted_flag = 0').all(userId) as RecurringTransaction[];
 }
 
-export function updateRecurring(db: DatabaseType, id: string, updates: Partial<RecurringTransaction>): void {
-  const current = db.prepare('SELECT * FROM recurring_transactions WHERE id = ?').get(id) as RecurringTransaction | undefined;
+export type RecurringUpdateFields = Partial<Pick<RecurringTransaction, 'next_due_date' | 'last_generated_date' | 'is_active'>>;
+
+export function updateRecurring(db: DatabaseType, id: string, updates: RecurringUpdateFields): void {
+  const current = db.prepare('SELECT * FROM recurring_transactions WHERE id = ? AND deleted_flag = 0').get(id) as RecurringTransaction | undefined;
   if (!current) { throw new Error(`Recurring transaction not found: ${id}`); }
   const updated = { ...current, ...updates, sync_version: current.sync_version + 1, updated_at: nowMs() };
   db.prepare(`UPDATE recurring_transactions SET next_due_date = @next_due_date, last_generated_date = @last_generated_date, is_active = @is_active, sync_version = @sync_version, updated_at = @updated_at WHERE id = @id`).run(updated);
