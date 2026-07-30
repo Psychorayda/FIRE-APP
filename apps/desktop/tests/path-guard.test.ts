@@ -1,4 +1,5 @@
 // @vitest-environment node
+import path from 'node:path';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { issuePathToken, consumePathToken, isPathSafe } from '../src/main/ipc/path-guard.js';
 
@@ -23,11 +24,11 @@ describe('path-guard', () => {
   it('isPathSafe 拒绝含 .. 的穿越路径', () => {
     expect(isPathSafe('/tmp/../etc/passwd')).toBe(false);
     expect(isPathSafe('/tmp/..\\evil')).toBe(false);
-    expect(isPathSafe('/tmp/legit/file.json')).toBe(true);
+    expect(isPathSafe(path.resolve('/tmp/legit/file.json'))).toBe(true);
   });
 
   it('isPathSafe 拒绝非绝对路径', () => {
     expect(isPathSafe('relative/path.json')).toBe(false);
-    expect(isPathSafe('/abs/path.json')).toBe(true);
+    expect(isPathSafe(path.resolve('/abs/path.json'))).toBe(true);
   });
 });
