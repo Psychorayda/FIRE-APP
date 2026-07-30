@@ -154,19 +154,24 @@ const DDL_STATEMENTS: string[] = [
     deleted_flag INTEGER NOT NULL DEFAULT 0
   )`,
 
-  // 索引
-  `CREATE INDEX IF NOT EXISTS idx_tx_user_date ON transactions(user_id, transaction_date DESC)`,
-  `CREATE INDEX IF NOT EXISTS idx_tx_account ON transactions(account_id, transaction_date DESC)`,
-  `CREATE INDEX IF NOT EXISTS idx_tx_category ON transactions(category_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_tx_recurring ON transactions(recurring_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_acc_user ON accounts(user_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_cat_user ON categories(user_id)`,
+  // 索引（partial index：仅索引未软删记录，减小体积 + 避免行内过滤）
+  // Indexes (partial index: only non-deleted rows, smaller + avoids row-level filtering)
+  `CREATE INDEX IF NOT EXISTS idx_tx_user_date ON transactions(user_id, transaction_date DESC, updated_at DESC) WHERE deleted_flag = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_tx_account ON transactions(account_id, transaction_date DESC) WHERE deleted_flag = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_tx_to_account ON transactions(to_account_id) WHERE deleted_flag = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_tx_category ON transactions(category_id) WHERE deleted_flag = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_tx_recurring ON transactions(recurring_id) WHERE deleted_flag = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_tx_recurring_date ON transactions(recurring_id, transaction_date) WHERE deleted_flag = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_acc_user_class ON accounts(user_id, asset_class) WHERE deleted_flag = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_acc_user ON accounts(user_id) WHERE deleted_flag = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_cat_user ON categories(user_id) WHERE deleted_flag = 0`,
   // 偏唯一索引：同一用户下未删除的 (name, type) 唯一，软删除记录不参与去重
   // Partial unique index: (user_id, name, type) unique among non-deleted rows only.
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_cat_unique_active ON categories(user_id, name, type) WHERE deleted_flag = 0`,
-  `CREATE INDEX IF NOT EXISTS idx_recur_user ON recurring_transactions(user_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_snap_user ON net_worth_snapshots(user_id, snapshot_date DESC)`,
-  `CREATE INDEX IF NOT EXISTS idx_fire_user ON fire_scenarios(user_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_recur_active ON recurring_transactions(user_id) WHERE is_active = 1 AND deleted_flag = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_recur_user ON recurring_transactions(user_id) WHERE deleted_flag = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_snap_user ON net_worth_snapshots(user_id, snapshot_year_month DESC) WHERE deleted_flag = 0`,
+  `CREATE INDEX IF NOT EXISTS idx_fire_user ON fire_scenarios(user_id) WHERE deleted_flag = 0`,
 ];
 
 /**

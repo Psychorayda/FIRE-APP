@@ -111,6 +111,77 @@ describe('schema', () => {
     expect(indexNames).toContain('idx_tx_recurring');
   });
 
+  // ===== partial index / 部分索引 (Task P1) =====
+  describe('partial indexes', () => {
+    // 辅助：取某索引的 CREATE 语句 sql 文本
+    const getIndexSql = (name: string): string => {
+      const row = db.prepare(
+        "SELECT sql FROM sqlite_master WHERE type='index' AND name=?"
+      ).get(name) as { sql: string } | undefined;
+      return row?.sql ?? '';
+    };
+
+    it('transactions: 所有 partial index 存在且带 WHERE deleted_flag = 0', () => {
+      const expected = [
+        'idx_tx_user_date',
+        'idx_tx_account',
+        'idx_tx_to_account',
+        'idx_tx_category',
+        'idx_tx_recurring',
+        'idx_tx_recurring_date',
+      ];
+      for (const idxName of expected) {
+        const sql = getIndexSql(idxName);
+        expect(sql, `index ${idxName} should exist`).toMatch(/CREATE INDEX/);
+        expect(sql).toMatch(/WHERE deleted_flag = 0/i);
+      }
+    });
+
+    it('transactions: idx_tx_user_date 含 updated_at DESC 列', () => {
+      const sql = getIndexSql('idx_tx_user_date');
+      expect(sql).toMatch(/updated_at DESC/i);
+    });
+
+    it('其他表: partial index 存在且 WHERE 子句含 deleted_flag = 0', () => {
+      const checks: Array<[string, string]> = [
+        ['accounts', 'idx_acc_user_class'],
+        ['accounts', 'idx_acc_user'],
+        ['categories', 'idx_cat_user'],
+        ['recurring_transactions', 'idx_recur_active'],
+        ['recurring_transactions', 'idx_recur_user'],
+        ['net_worth_snapshots', 'idx_snap_user'],
+        ['fire_scenarios', 'idx_fire_user'],
+      ];
+      for (const [tbl, idxName] of checks) {
+        const sql = getIndexSql(idxName);
+        expect(sql, `index ${idxName} on ${tbl} should exist`).toMatch(/CREATE INDEX/);
+        // 所有索引的 WHERE 子句都必须包含 deleted_flag = 0（idx_recur_active 还额外含 is_active = 1）
+        expect(sql).toMatch(/deleted_flag = 0/i);
+        expect(sql).toMatch(/WHERE/i);
+        // 同时确认该索引确实绑定在对应表上
+        const row = db.prepare(
+          "SELECT tbl_name FROM sqlite_master WHERE type='index' AND name=?"
+        ).get(idxName) as { tbl_name: string } | undefined;
+        expect(row?.tbl_name).toBe(tbl);
+      }
+    });
+
+    it('idx_recur_active: WHERE 子句含 is_active = 1 AND deleted_flag = 0', () => {
+      const sql = getIndexSql('idx_recur_active');
+      expect(sql).toMatch(/is_active = 1 AND deleted_flag = 0/i);
+    });
+
+    it('idx_snap_user: 含 snapshot_year_month DESC 列', () => {
+      const sql = getIndexSql('idx_snap_user');
+      expect(sql).toMatch(/snapshot_year_month DESC/i);
+    });
+
+    it('idx_acc_user_class: 含 user_id, asset_class 列', () => {
+      const sql = getIndexSql('idx_acc_user_class');
+      expect(sql).toMatch(/user_id, asset_class/i);
+    });
+  });
+
   it('net_worth_snapshots: 唯一约束 (user_id, snapshot_year_month)', () => {
     // 外键约束已开启，需先插入一条 users 记录以满足 net_worth_snapshots.user_id 外键
     db.prepare(`
