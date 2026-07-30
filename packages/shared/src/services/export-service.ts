@@ -26,7 +26,9 @@ export interface ExportEnvelope {
 }
 
 export function buildExportEnvelope(db: DatabaseType, userId: string, appVersion: string): ExportEnvelope {
-  const users = db.prepare('SELECT * FROM users WHERE id = ?').all(userId) as User[];
+  // 显式列名查询 users，剔除 encryption_key_hash（避免离线密码爆破）
+  // Explicit column list for users, exclude encryption_key_hash (prevent offline password brute-force)
+  const users = db.prepare(`SELECT id, display_name, base_currency, is_china_market, default_withdrawal_rate, default_expected_return, default_inflation_rate, NULL as encryption_key_hash, last_sync_at, sync_version, updated_at, deleted_flag FROM users WHERE id = ?`).all(userId) as User[];
   const accounts = db.prepare('SELECT * FROM accounts WHERE user_id = ?').all(userId) as Account[];
   const categories = db.prepare('SELECT * FROM categories WHERE user_id = ?').all(userId) as Category[];
   const transactions = db.prepare('SELECT * FROM transactions WHERE user_id = ?').all(userId) as Transaction[];

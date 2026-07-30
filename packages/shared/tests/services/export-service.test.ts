@@ -85,4 +85,11 @@ describe('export-service', () => {
     expect(EXPORT_TABLE_NAMES).toContain('users');
     expect(EXPORT_TABLE_NAMES).toContain('fire_scenarios');
   });
+
+  it('buildExportEnvelope: 不导出 encryption_key_hash', () => {
+    // 直接设置 encryption_key_hash
+    db.prepare('UPDATE users SET encryption_key_hash = ? WHERE id = ?').run('secret-hash-value', userId);
+    const envelope = buildExportEnvelope(db, userId, '0.8.0');
+    expect(envelope.data.users[0].encryption_key_hash).toBeNull();
+  });
 });
