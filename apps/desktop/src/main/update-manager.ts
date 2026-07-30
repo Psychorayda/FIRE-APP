@@ -5,7 +5,7 @@ import { app, BrowserWindow } from 'electron';
 import electronUpdater from 'electron-updater';
 import type { UpdateInfo } from 'electron-updater';
 import { join } from 'path';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync } from 'fs';
 
 // electron-updater 是 CommonJS 模块，打包后 ESM 加载器不支持命名导入
 // 需用默认导入 + 解构（dev 模式下 bundler 自动处理，打包后需显式写）
@@ -100,9 +100,11 @@ export class UpdateManager {
       await autoUpdater.checkForUpdates();
       return this.status;
     } catch (err) {
+      const rawErr = err instanceof Error ? err.message : String(err);
+      this.debugLog(`checkForUpdates failed: ${rawErr}`);
       this.updateStatus({
         phase: 'error',
-        error: '检查更新失败，请检查网络连接',
+        error: `检查失败：${rawErr}`,
       });
       return this.status;
     }
@@ -115,9 +117,12 @@ export class UpdateManager {
     try {
       await autoUpdater.downloadUpdate();
     } catch (err) {
+      // 记录原始错误便于诊断（脱敏：仅 message，不含 stack/路径）
+      const rawErr = err instanceof Error ? err.message : String(err);
+      this.debugLog(`downloadUpdate failed: ${rawErr}`);
       this.updateStatus({
         phase: 'error',
-        error: '下载更新失败，请检查网络连接',
+        error: `下载失败：${rawErr}`,
       });
     }
   }
@@ -210,9 +215,12 @@ export class UpdateManager {
     });
 
     autoUpdater.on('error', (_err) => {
+      // 记录原始错误便于诊断（autoUpdater error 事件携带详细信息）
+      const rawErr = _err instanceof Error ? _err.message : String(_err);
+      this.debugLog(`autoUpdater error event: ${rawErr}`);
       this.updateStatus({
         phase: 'error',
-        error: '更新检查失败，请检查网络连接',
+        error: `更新错误：${rawErr}`,
       });
     });
   }
@@ -253,6 +261,20 @@ export class UpdateManager {
       writeFileSync(this.stateFilePath, JSON.stringify(data, null, 2), 'utf-8');
     } catch {
       // 持久化失败不阻塞主流程 / Persistence failure does not block main flow
+    }
+  }
+
+  /**
+   * 写诊断日志到 userData/fire-app-debug.log（与主进程共用同一文件）
+   * Write diagnostic log to userData/fire-app-debug.log (shared with main process)
+   */
+  private debugLog(message: string): void {
+    try {
+      const logPath = join(app.getPath('userData'), 'fire-app-debug.log');
+      const line = `[${new Date().toISOString()}] [update] ${message}\n`;
+      appendFileSync(logPath, line, 'utf8');
+    } catch {
+      // 日志写入失败不阻塞主流程
     }
   }
 }
