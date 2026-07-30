@@ -5,6 +5,12 @@
 appId: com.fireapp.desktop
 productName: FIRE App
 
+# 统一产物命名：硬编码 "FIRE-App"（不用 ${productName}，因为它含空格 "FIRE App"，
+# electron-builder 生成 exe 时会把空格替换成点号 → FIRE.App.Setup.exe，
+# 但生成 latest.yml 时用连字符 → FIRE-App-Setup.exe，导致 electron-updater 下载 404）
+# Hardcode name to avoid space→dot vs space→hyphen mismatch between exe and latest.yml
+artifactName: FIRE-App-${version}-${arch}.${ext}
+
 # 发布到 GitHub Releases（electron-updater 自动更新源）
 # CI 每次 push 到 main 会自动生成预发布版本号并上传
 publish:
@@ -41,6 +47,7 @@ win:
 
 # nsis 安装包配置
 nsis:
+  artifactName: FIRE-App-Setup-${version}.${ext}  # 安装包命名（与顶层 artifactName 风格一致）
   oneClick: false                           # 非一键安装，有向导
   perMachine: false                         # 当前用户安装（无需管理员）
   allowToChangeInstallationDirectory: true  # 允许选安装路径
