@@ -1,6 +1,6 @@
 // Electron 主进程入口 / Electron main process entry
 
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, shell, session } from 'electron';
 import { join } from 'path';
 import { mkdirSync, existsSync, appendFileSync } from 'fs';
 import { initDatabase, closeAppDatabase } from './db-manager.js';
@@ -50,7 +50,7 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.mjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
     },
   });
 
@@ -58,8 +58,27 @@ function createWindow(): void {
     mainWindow?.show();
   });
 
+  // 拦截 window.open，转系统浏览器打开外链
+  // Intercept window.open, delegate external links to system browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  // 阻止渲染端导航到外部协议（非 dev 模式）
+  // Prevent renderer navigation to external protocols (non-dev mode)
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!app.isPackaged && url.startsWith(process.env['ELECTRON_RENDERER_URL'] ?? '__invalid__')) {
+      return; // dev 模式下允许 vite HMR 导航
+    }
+    event.preventDefault();
+  });
+
   // 开发模式加载 dev server，生产模式加载打包文件
-  if (process.env['ELECTRON_RENDERER_URL']) {
+  // Dev mode loads dev server, production loads packaged file
+  if (!app.isPackaged && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
@@ -80,7 +99,20 @@ app.whenReady().then(() => {
   registerIpcHandlers();
   debugLog('IPC handlers registered');
 
-  // 3. 创建窗口
+  // 3. 注入 CSP 响应头（生产模式，比 index.html meta 更严格）
+  // Inject CSP response headers (production mode, stricter than index.html meta)
+  if (app.isPackaged) {
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': ["default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'"],
+        },
+      });
+    });
+  }
+
+  // 4. 创建窗口
   createWindow();
   debugLog('Main window created');
 
