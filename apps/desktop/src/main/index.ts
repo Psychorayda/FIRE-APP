@@ -64,9 +64,6 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show();
-    // 临时：打包版也开 DevTools 诊断 onboarding + update 问题
-    // Temporary: open DevTools in packaged build to diagnose onboarding + update issues
-    mainWindow?.webContents.openDevTools();
   });
 
   // 拦截 window.open，转系统浏览器打开外链
