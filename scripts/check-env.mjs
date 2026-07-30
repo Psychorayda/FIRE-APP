@@ -3,7 +3,7 @@
 // 检测 Node 版本、pnpm、OneDrive 路径、原生模块、electron 二进制
 // 检测到问题时输出可复制的修复命令
 
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, statSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +12,23 @@ import { dirname } from 'node:path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = resolve(__dirname, '..');
+
+/**
+ * 读取 node_modules 下某包的 version 字段
+ * Read version field from a package's package.json in node_modules
+ * @param {string} pkgName 包名 / package name
+ * @returns {string|null} 版本号；包不存在返回 null / version string; null if not installed
+ */
+function readPkgVersion(pkgName) {
+  try {
+    const pkgJson = JSON.parse(
+      readFileSync(join(projectRoot, 'node_modules', pkgName, 'package.json'), 'utf-8')
+    );
+    return pkgJson.version ?? null;
+  } catch {
+    return null;
+  }
+}
 
 // 解析参数 / Parse args
 const quiet = process.argv.includes('--quiet');
@@ -40,9 +57,9 @@ const dim = '\x1b[2m';
 function checkNodeVersion() {
   const version = process.version;
   const major = parseInt(version.slice(1));
-  const passed = major >= 20 && major < 22;
-  const detail = `${version} (要求 >=20 <22)`;
-  const fix = passed ? null : '安装 Node 20 LTS:\n  nvm install 20.18.0\n  nvm use 20.18.0\n或手动下载: https://npmmirror.com/mirrors/node/v20.18.0/';
+  const passed = major >= 22 && major < 24;
+  const detail = `${version} (要求 >=22 <24)`;
+  const fix = passed ? null : '安装 Node 22 LTS:\n  nvm install 22.14.0\n  nvm use 22.14.0\n或手动下载: https://npmmirror.com/mirrors/node/v22.14.0/';
   addResult('Node 版本', passed, detail, fix);
 }
 
@@ -71,9 +88,16 @@ function checkOneDrivePath() {
 
 // 检测 4: 原生模块状态 / Check native module
 function checkNativeModule() {
+  // 动态读取 better-sqlite3 版本，避免硬编码 / Read version dynamically to avoid hardcoding
+  const sqliteVersion = readPkgVersion('better-sqlite3');
+  if (!sqliteVersion) {
+    addResult('原生模块', false, 'better-sqlite3 未安装', '安装依赖:\n  pnpm install');
+    return;
+  }
+
   // 查找 better-sqlite3 的 .node 文件
   const possiblePaths = [
-    join(projectRoot, 'node_modules', '.pnpm', 'better-sqlite3@11.10.0', 'node_modules', 'better-sqlite3', 'build', 'Release', 'better_sqlite3.node'),
+    join(projectRoot, 'node_modules', '.pnpm', `better-sqlite3@${sqliteVersion}`, 'node_modules', 'better-sqlite3', 'build', 'Release', 'better_sqlite3.node'),
     join(projectRoot, 'node_modules', 'better-sqlite3', 'build', 'Release', 'better_sqlite3.node'),
   ];
 
@@ -89,27 +113,37 @@ function checkNativeModule() {
   const pkgMtime = existsSync(pkgJsonPath) ? statSync(pkgJsonPath).mtime : new Date(0);
   const fresh = nodeMtime > pkgMtime || nodeMtime.getTime() > Date.now() - 86400000 * 7; // 7 天内编译过
 
-  const detail = fresh ? `已编译 (${foundPath.split(/[\\/]/).slice(-3).join('/')})` : '已编译但可能过期';
+  const detail = fresh ? `已编译 v${sqliteVersion} (${foundPath.split(/[\\/]/).slice(-3).join('/')})` : `已编译 v${sqliteVersion} 但可能过期`;
   const fix = fresh ? null : '重新编译原生模块:\n  pnpm --filter @fire-app/desktop rebuild';
   addResult('原生模块', fresh, detail, fix);
 }
 
 // 检测 5: electron 二进制 / Check electron binary
 function checkElectronBinary() {
+  // 动态读取 electron 版本 / Read electron version dynamically
+  const electronVersion = readPkgVersion('electron');
+  if (!electronVersion) {
+    addResult('Electron 二进制', false, 'electron 包未安装', '安装依赖:\n  pnpm install');
+    return;
+  }
+
   // electron 包路径
-  const electronPkgPath = join(projectRoot, 'node_modules', '.pnpm', 'electron@31.7.7', 'node_modules', 'electron');
+  const electronPkgPath = join(
+    projectRoot, 'node_modules', '.pnpm',
+    `electron@${electronVersion}`, 'node_modules', 'electron'
+  );
   const electronPathTxt = join(electronPkgPath, 'path.txt');
 
   if (!existsSync(electronPkgPath)) {
-    addResult('Electron 二进制', false, 'electron 包未安装', '安装依赖:\n  pnpm install');
+    addResult('Electron 二进制', false, `electron@${electronVersion} 包目录未找到`, '重新安装依赖:\n  pnpm install');
     return;
   }
 
   // path.txt 是 electron install 后生成的，存在说明二进制已下载
   if (existsSync(electronPathTxt)) {
-    addResult('Electron 二进制', true, '已下载 (31.7.7)', null);
+    addResult('Electron 二进制', true, `已下载 v${electronVersion}`, null);
   } else {
-    addResult('Electron 二进制', false, 'path.txt 不存在，二进制可能未下载', '下载 electron 二进制:\n  cd node_modules/.pnpm/electron@31.7.7/node_modules/electron\n  node install.js');
+    addResult('Electron 二进制', false, `path.txt 不存在，v${electronVersion} 二进制可能未下载`, `下载 electron 二进制:\n  cd node_modules/.pnpm/electron@${electronVersion}/node_modules/electron\n  node install.js`);
   }
 }
 
