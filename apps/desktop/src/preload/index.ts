@@ -97,8 +97,25 @@ const dataAccess = {
   },
 };
 
+// 暴露给渲染进程的自动更新 API / Auto-update API exposed to renderer
+const update = {
+  check: () => ipcRenderer.invoke('update:check'),
+  download: () => ipcRenderer.invoke('update:download'),
+  install: () => ipcRenderer.invoke('update:install'),
+  skipVersion: (version: string) => ipcRenderer.invoke('update:skipVersion', version),
+  getStatus: () => ipcRenderer.invoke('update:getStatus'),
+  onStatusChanged: (callback: (status: unknown) => void) => {
+    const handler = (_event: unknown, status: unknown) => callback(status);
+    ipcRenderer.on('update:status-changed', handler);
+    // 返回取消订阅函数 / Return unsubscribe function
+    return () => ipcRenderer.removeListener('update:status-changed', handler);
+  },
+};
+
 // 将 dataAccess 挂载到 window 上
 contextBridge.exposeInMainWorld('dataAccess', dataAccess);
+contextBridge.exposeInMainWorld('update', update);
 
 // 类型声明：告诉 TypeScript window.dataAccess 存在
 export type DataAccess = typeof dataAccess;
+export type UpdateApi = typeof update;
