@@ -5,7 +5,11 @@ import { app, BrowserWindow } from 'electron';
 import electronUpdater from 'electron-updater';
 import type { UpdateInfo } from 'electron-updater';
 import { join } from 'path';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync, unlinkSync } from 'fs';
+import { MirrorRegistry } from './updater/mirror-registry.js';
+import { DownloadManager } from './updater/download-manager.js';
+import { InstallRunner } from './updater/install-runner.js';
+import type { DownloadProgress } from './updater/download-manager.js';
 
 // electron-updater 是 CommonJS 模块，打包后 ESM 加载器不支持命名导入
 // 需用默认导入 + 解构（dev 模式下 bundler 自动处理，打包后需显式写）
@@ -30,6 +34,8 @@ export interface UpdateStatus {
   downloadProgress?: number;        // 0-100
   error?: string;
   skippedVersions: string[];
+  downloadMirror?: string;          // 当前下载镜像 id
+  retryCount?: number;              // 已重试次数
 }
 
 // 跳过版本持久化文件结构 / Skipped versions persistence file structure
@@ -41,6 +47,10 @@ const STATE_FILE = 'update-state.json';
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;  // 24h
 const STARTUP_DELAY_MS = 10 * 1000;              // 10s
 
+// GitHub 仓库信息（用于拼接 release 下载 URL）
+const GITHUB_OWNER = 'Psychorayda';
+const GITHUB_REPO = 'FIRE-APP';
+
 /**
  * 自动更新管理器 / Auto-update manager
  * 封装 electron-updater，提供状态同步 + 跳过版本持久化 + 定时轮询
@@ -51,6 +61,11 @@ export class UpdateManager {
   private pollTimer: NodeJS.Timeout | null = null;
   private startupTimer: NodeJS.Timeout | null = null;
   private stateFilePath: string;
+  private mirrorRegistry: MirrorRegistry;
+  private downloadManager: DownloadManager;
+  private installRunner: InstallRunner;
+  private updateInfo: { exeUrl: string; sha512: string; size: number } | null = null;
+  private downloadedInstallerPath: string | null = null;
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
@@ -67,6 +82,19 @@ export class UpdateManager {
     autoUpdater.autoInstallOnAppQuit = false;
     autoUpdater.allowDowngrade = false;
     autoUpdater.allowPrerelease = true;
+
+    this.mirrorRegistry = new MirrorRegistry();
+    this.downloadManager = new DownloadManager(this.mirrorRegistry);
+    this.installRunner = new InstallRunner();
+
+    // 监听下载进度
+    this.downloadManager.on('progress', (p: DownloadProgress) => {
+      this.updateStatus({
+        phase: 'downloading',
+        downloadProgress: p.percent,
+        downloadMirror: p.mirrorId,
+      });
+    });
 
     this.registerAutoUpdaterEvents();
   }
@@ -111,15 +139,44 @@ export class UpdateManager {
   }
 
   /**
-   * 下载更新 / Download update
+   * 下载更新（多镜像轮询 + 断点续传）
+   * Download update (multi-mirror polling + resumable)
    */
   async downloadUpdate(): Promise<void> {
+    if (!this.updateInfo) {
+      this.updateStatus({
+        phase: 'error',
+        error: '下载失败：无可用更新信息，请先检查更新',
+      });
+      return;
+    }
+
+    const { exeUrl, sha512, size } = this.updateInfo;
+    const version = this.status.latestVersion!;
+    const cacheDir = join(app.getPath('userData'), 'update-cache');
+    if (!existsSync(cacheDir)) {
+      mkdirSync(cacheDir, { recursive: true });
+    }
+    const destPath = join(cacheDir, `FIRE-App-Setup-${version}.exe`);
+
     try {
-      await autoUpdater.downloadUpdate();
+      const result = await this.downloadManager.download(exeUrl, sha512, size, destPath);
+      if (result.success) {
+        this.downloadedInstallerPath = destPath;
+        this.updateStatus({
+          phase: 'downloaded',
+          downloadProgress: 100,
+        });
+      } else {
+        this.debugLog(`downloadUpdate failed: ${result.error}`);
+        this.updateStatus({
+          phase: 'error',
+          error: `下载失败：${result.error}`,
+        });
+      }
     } catch (err) {
-      // 记录原始错误便于诊断（脱敏：仅 message，不含 stack/路径）
       const rawErr = err instanceof Error ? err.message : String(err);
-      this.debugLog(`downloadUpdate failed: ${rawErr}`);
+      this.debugLog(`downloadUpdate exception: ${rawErr}`);
       this.updateStatus({
         phase: 'error',
         error: `下载失败：${rawErr}`,
@@ -128,11 +185,28 @@ export class UpdateManager {
   }
 
   /**
-   * 安装更新（退出应用并启动安装程序）
-   * Install update (quit app and launch installer)
+   * 安装更新（NSIS 静默安装 + 重启）
+   * Install update (NSIS silent install + restart)
    */
   async installUpdate(): Promise<void> {
-    await autoUpdater.quitAndInstall(false, true);
+    if (!this.downloadedInstallerPath || !existsSync(this.downloadedInstallerPath)) {
+      this.updateStatus({
+        phase: 'error',
+        error: `安装失败：安装包不存在，请手动运行：${this.downloadedInstallerPath ?? '(未知路径)'}`,
+      });
+      return;
+    }
+
+    try {
+      this.installRunner.run(this.downloadedInstallerPath);
+    } catch (err) {
+      const rawErr = err instanceof Error ? err.message : String(err);
+      this.debugLog(`installUpdate failed: ${rawErr}`);
+      this.updateStatus({
+        phase: 'error',
+        error: `安装失败，请手动运行安装包：${this.downloadedInstallerPath}`,
+      });
+    }
   }
 
   /**
@@ -167,6 +241,7 @@ export class UpdateManager {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
     }
+    this.downloadManager.removeAllListeners();
     autoUpdater.removeAllListeners();
     this.mainWindow = null;
   }
@@ -184,6 +259,19 @@ export class UpdateManager {
         // 静默跳过，不推送事件给 renderer
         this.updateStatus({ phase: 'idle' });
         return;
+      }
+      // 缓存下载元数据（electron-updater 的 UpdateInfo.files[0]）
+      const file = info.files?.[0];
+      if (file) {
+        // file.url 是相对路径，需拼接 release base URL
+        const releaseBaseUrl = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${info.version}`;
+        this.updateInfo = {
+          exeUrl: `${releaseBaseUrl}/${file.url}`,
+          sha512: file.sha512,
+          // file.size 在类型中是可选（size?: number），缺省时回退 0
+          // （DownloadManager 对 expectedSize=0 时跳过百分比计算，下载仍可进行）
+          size: file.size ?? 0,
+        };
       }
       this.updateStatus({
         phase: 'available',
