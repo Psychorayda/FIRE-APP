@@ -37,4 +37,38 @@ describe('MirrorRegistry', () => {
     const original = 'https://github.com/owner/repo/releases/download/v1.0/app.exe';
     expect(github.rewrite(original)).toBe(original);
   });
+
+  it('连续失败 2 次后镜像被熔断，排到后面', () => {
+    registry.markFailed('ghproxy');
+    registry.markFailed('ghproxy');
+    const order = registry.getDownloadOrder();
+    // ghproxy 被熔断，排到最后
+    expect(order[2].id).toBe('ghproxy');
+    expect(order[0].id).toBe('gh-proxy');
+  });
+
+  it('单次失败不触发熔断，仍保持优先级', () => {
+    registry.markFailed('ghproxy');
+    const order = registry.getDownloadOrder();
+    expect(order[0].id).toBe('ghproxy');  // 仍排第一
+  });
+
+  it('markSuccess 清除失败计数，恢复优先级', () => {
+    registry.markFailed('ghproxy');
+    registry.markFailed('ghproxy');
+    expect(registry.getDownloadOrder()[2].id).toBe('ghproxy');
+    registry.markSuccess('ghproxy');
+    expect(registry.getDownloadOrder()[0].id).toBe('ghproxy');
+  });
+
+  it('所有镜像都被熔断时，仍返回全部镜像（兜底）', () => {
+    registry.markFailed('ghproxy');
+    registry.markFailed('ghproxy');
+    registry.markFailed('gh-proxy');
+    registry.markFailed('gh-proxy');
+    registry.markFailed('github');
+    registry.markFailed('github');
+    const order = registry.getDownloadOrder();
+    expect(order).toHaveLength(3);  // 仍返回 3 个，不剔除
+  });
 });
