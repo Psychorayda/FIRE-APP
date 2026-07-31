@@ -96,6 +96,23 @@ export class UpdateManager {
       });
     });
 
+    // 诊断事件监听（写入 debugLog，用于定位下载失败根因）
+    this.downloadManager.on('first-chunk', (e: { mirrorId: string; headHex: string; httpStatus: number }) => {
+      this.debugLog(`[update] first-chunk: mirror=${e.mirrorId} status=${e.httpStatus} head=${e.headHex}`);
+    });
+    this.downloadManager.on('range-unsupported', (e: { mirrorId: string; currentSize: number }) => {
+      this.debugLog(`[update] range-unsupported: mirror=${e.mirrorId} currentSize=${e.currentSize} (将从头下载)`);
+    });
+    this.downloadManager.on('mirror-completed', (e: { mirrorId: string; actualSize: number; expectedSize: number }) => {
+      this.debugLog(`[update] mirror-completed: mirror=${e.mirrorId} actual=${e.actualSize} expected=${e.expectedSize}`);
+    });
+    this.downloadManager.on('verify-failed', (e: { mirrorId: string; expectedSize: number; actualSize: number; expectedSha512: string; fileHeadHex: string }) => {
+      this.debugLog(`[update] verify-failed: mirror=${e.mirrorId} expected=${e.expectedSize} actual=${e.actualSize} expectedSha512=${e.expectedSha512} head=${e.fileHeadHex}`);
+    });
+    this.downloadManager.on('mirror-error', (e: { mirrorId: string; error: string }) => {
+      this.debugLog(`[update] mirror-error: mirror=${e.mirrorId} error=${e.error}`);
+    });
+
     this.registerAutoUpdaterEvents();
   }
 

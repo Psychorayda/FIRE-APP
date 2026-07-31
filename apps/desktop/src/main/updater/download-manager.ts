@@ -60,16 +60,33 @@ export class DownloadManager extends EventEmitter {
       try {
         await this.downloadFromMirror(mirrorUrl, partialPath, currentSize, expectedSize, mirror.id);
         // 下载完成，校验 SHA512
+        const actualSize = this.getExistingFileSize(partialPath);
         if (await this.verifySha512(partialPath, expectedSha512)) {
           this.registry.markSuccess(mirror.id);
           renameSync(partialPath, destPath);
           return { success: true, mirrorId: mirror.id };
         } else {
-          // 校验失败，删除部分文件，切下一个镜像
+          // 校验失败：记录诊断信息（文件头 16 字节 hex，用于区分 exe vs HTML）
+          const { readFile } = await import('node:fs/promises');
+          let fileHeadHex = '(unknown)';
+          try {
+            const buf = await readFile(partialPath);
+            fileHeadHex = buf.subarray(0, 16).toString('hex').toUpperCase();
+          } catch {}
+          this.emit('verify-failed', {
+            mirrorId: mirror.id,
+            expectedSize,
+            actualSize,
+            expectedSha512: expectedSha512.substring(0, 16) + '...',
+            fileHeadHex,
+          });
+          // 删除部分文件，切下一个镜像
           this.registry.markFailed(mirror.id);
           try { unlinkSync(partialPath); } catch {}
         }
       } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        this.emit('mirror-error', { mirrorId: mirror.id, error: errMsg });
         this.registry.markFailed(mirror.id);
         // 保留 .partial 文件，下个镜像续传
         continue;
@@ -99,6 +116,7 @@ export class DownloadManager extends EventEmitter {
       const req = https.get(url, { headers }, (res) => {
         // 不支持 Range（返回 200 而非 206）→ 从头下
         if (currentSize > 0 && res.statusCode === 200) {
+          this.emit('range-unsupported', { mirrorId, currentSize });
           currentSize = 0;
         }
 
@@ -112,8 +130,16 @@ export class DownloadManager extends EventEmitter {
         let downloadedInThisSession = 0;
         let lastSpeedCheck = Date.now();
         let lastBytes = currentSize;
+        let firstChunkLogged = false;
 
         res.on('data', (chunk: Buffer) => {
+          // 记录首块字节（诊断用：区分 exe vs HTML 页面）
+          if (!firstChunkLogged && downloadedInThisSession === 0 && currentSize === 0) {
+            const headHex = chunk.subarray(0, 16).toString('hex').toUpperCase();
+            this.emit('first-chunk', { mirrorId, headHex, httpStatus: res.statusCode });
+            firstChunkLogged = true;
+          }
+
           downloadedInThisSession += chunk.length;
           const totalDownloaded = currentSize + downloadedInThisSession;
           const percent = expectedSize > 0 ? Math.round((totalDownloaded / expectedSize) * 100) : 0;
@@ -143,6 +169,8 @@ export class DownloadManager extends EventEmitter {
         res.pipe(writeStream);
 
         writeStream.on('finish', () => {
+          const actualSize = this.getExistingFileSize(partialPath);
+          this.emit('mirror-completed', { mirrorId, actualSize, expectedSize });
           resolve();
         });
 
