@@ -54,3 +54,32 @@ describe('DownloadManager', () => {
     });
   });
 });
+
+describe('DownloadManager - 多镜像轮询', () => {
+  let registry: MirrorRegistry;
+  let manager: DownloadManager;
+  let tmpDir: string;
+
+  beforeEach(() => {
+    registry = new MirrorRegistry();
+    manager = new DownloadManager(registry);
+    tmpDir = mkdtempSync(join(tmpdir(), 'fire-test-'));
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('所有镜像都失败时返回 failure', async () => {
+    // 用必然失败的 URL（端口 1 通常无服务，连接被拒绝）
+    const destPath = join(tmpDir, 'app.exe');
+    const result = await manager.download(
+      'https://127.0.0.1:1/test/app.exe',
+      'fakehash',
+      1024,
+      destPath,
+    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('所有镜像下载失败');
+  }, 30000); // 30s 超时，因为要尝试 3 个镜像
+});
