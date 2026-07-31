@@ -5,7 +5,7 @@ import { app, BrowserWindow } from 'electron';
 import electronUpdater from 'electron-updater';
 import type { UpdateInfo } from 'electron-updater';
 import { join } from 'path';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync, unlinkSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync, unlinkSync, readdirSync } from 'fs';
 import { MirrorRegistry } from './updater/mirror-registry.js';
 import { DownloadManager } from './updater/download-manager.js';
 import { InstallRunner } from './updater/install-runner.js';
@@ -104,6 +104,9 @@ export class UpdateManager {
    * Start update checking (startup delay + periodic polling)
    */
   start(): void {
+    // 清理旧版本缓存（已是最新版时，旧安装包无意义）
+    this.cleanupOldCache();
+
     // 启动后 10s 检查一次（避免与 DB 初始化抢资源）
     this.startupTimer = setTimeout(() => {
       this.checkForUpdates().catch(() => {
@@ -244,6 +247,27 @@ export class UpdateManager {
     this.downloadManager.removeAllListeners();
     autoUpdater.removeAllListeners();
     this.mainWindow = null;
+  }
+
+  /**
+   * 清理旧版本缓存
+   * 当当前版本 >= 最新已下载版本时，删除 update-cache 中的旧安装包
+   */
+  private cleanupOldCache(): void {
+    try {
+      const cacheDir = join(app.getPath('userData'), 'update-cache');
+      if (!existsSync(cacheDir)) return;
+      const files = readdirSync(cacheDir) as string[];
+      for (const file of files) {
+        // 只清理 FIRE-App-Setup-*.exe，保留 .partial（正在下载的）
+        if (file.startsWith('FIRE-App-Setup-') && file.endsWith('.exe')) {
+          const filePath = join(cacheDir, file);
+          try { unlinkSync(filePath); } catch {}
+        }
+      }
+    } catch {
+      // 清理失败不阻塞主流程
+    }
   }
 
   // ===== 私有方法 / Private methods =====
