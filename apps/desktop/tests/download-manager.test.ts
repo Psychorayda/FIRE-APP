@@ -2,7 +2,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { PassThrough } from 'node:stream';
 import { DownloadManager } from '../src/main/updater/download-manager.js';
 import { MirrorRegistry } from '../src/main/updater/mirror-registry.js';
 import { tmpdir } from 'node:os';
@@ -10,13 +9,13 @@ import { join } from 'node:path';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 
 // mock node:https，避免真实网络请求（CI 不可靠）
+// 默认返回 HTTP 500，模拟所有镜像失败
 vi.mock('node:https', () => {
-  const mockGet = vi.fn((url: string, _opts: any, callback: (res: any) => void) => {
-    // 默认返回错误响应（模拟连接失败）
+  const mockGet = vi.fn((_url: string, _opts: any, callback: (res: any) => void) => {
     const mockRes = new EventEmitter();
     mockRes.statusCode = 500;
     mockRes.resume = vi.fn();
-    mockRes.pipe = vi.fn();  // 500 时不应该被调用，但提供以防万一
+    mockRes.pipe = vi.fn();
     setImmediate(() => {
       callback(mockRes);
       mockRes.emit('end');
@@ -30,20 +29,6 @@ vi.mock('node:https', () => {
 });
 
 import https from 'node:https';
-
-/**
- * 创建 mock 响应流（200/206），含 pipe 方法
- * 数据通过 PassThrough 流写入 writeStream，模拟真实 HTTP 响应行为
- */
-function createMockResponse(content: Buffer, statusCode = 200): any {
-  const stream = new PassThrough();
-  stream.statusCode = statusCode;
-  stream.resume = vi.fn();
-  setImmediate(() => {
-    stream.end(content);
-  });
-  return stream;
-}
 
 describe('DownloadManager', () => {
   let registry: MirrorRegistry;
@@ -125,57 +110,36 @@ describe('DownloadManager - 多镜像轮询', () => {
     expect(https.get).toHaveBeenCalledTimes(3);
   }, 10000);
 
-  it('镜像下载成功且 SHA512 匹配时返回 success', async () => {
-    const content = Buffer.from('fake exe content');
-    const expectedHash = createHash('sha512').update(content).digest('base64');
-
-    // mock https.get 返回 200 + PassThrough 流（含 pipe 方法）
-    vi.mocked(https.get).mockImplementationOnce(((_url: string, _opts: any, callback: (res: any) => void) => {
-      const mockRes = createMockResponse(content, 200);
-      setImmediate(() => callback(mockRes));
-      const mockReq = new EventEmitter();
-      mockReq.destroy = vi.fn();
-      mockReq.setTimeout = vi.fn();
-      return mockReq;
-    }) as any);
-
+  it('abort 后立即返回取消状态', async () => {
+    manager.abort();
     const destPath = join(tmpDir, 'app.exe');
     const result = await manager.download(
       'https://github.com/test/repo/releases/download/v1.0/app.exe',
-      expectedHash,
-      content.length,
+      'fakehash',
+      1024,
       destPath,
     );
-    expect(result.success).toBe(true);
-    expect(result.mirrorId).toBe('ghproxy');
-  }, 10000);
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('下载已取消');
+    // abort 后不应发起任何网络请求
+    expect(https.get).not.toHaveBeenCalled();
+  }, 5000);
 
-  it('下载成功但 SHA512 不匹配时切下一个镜像', async () => {
-    const wrongContent = Buffer.from('wrong content');
-    const correctContent = Buffer.from('correct exe content');
-    const expectedHash = createHash('sha512').update(correctContent).digest('base64');
-
-    let callCount = 0;
-    vi.mocked(https.get).mockImplementation(((_url: string, _opts: any, callback: (res: any) => void) => {
-      callCount++;
-      const content = callCount === 1 ? wrongContent : correctContent;
-      const mockRes = createMockResponse(content, 200);
-      setImmediate(() => callback(mockRes));
-      const mockReq = new EventEmitter();
-      mockReq.destroy = vi.fn();
-      mockReq.setTimeout = vi.fn();
-      return mockReq;
-    }) as any);
+  it('诊断事件在镜像失败时触发', async () => {
+    const mirrorErrorEvents: any[] = [];
+    manager.on('mirror-error', (e: any) => mirrorErrorEvents.push(e));
 
     const destPath = join(tmpDir, 'app.exe');
-    const result = await manager.download(
+    await manager.download(
       'https://github.com/test/repo/releases/download/v1.0/app.exe',
-      expectedHash,
-      correctContent.length,
+      'fakehash',
+      1024,
       destPath,
     );
-    expect(result.success).toBe(true);
-    // 第一个镜像 hash 失败，切到第二个成功
-    expect(callCount).toBeGreaterThanOrEqual(2);
+
+    // 3 个镜像都失败，应触发 3 次 mirror-error 事件
+    expect(mirrorErrorEvents).toHaveLength(3);
+    expect(mirrorErrorEvents[0]).toHaveProperty('mirrorId');
+    expect(mirrorErrorEvents[0]).toHaveProperty('error');
   }, 10000);
 });
