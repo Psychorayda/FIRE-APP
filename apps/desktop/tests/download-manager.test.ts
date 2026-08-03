@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
 import { DownloadManager } from '../src/main/updater/download-manager.js';
 import { MirrorRegistry } from '../src/main/updater/mirror-registry.js';
 import { tmpdir } from 'node:os';
@@ -15,12 +16,11 @@ vi.mock('node:https', () => {
     const mockRes = new EventEmitter();
     mockRes.statusCode = 500;
     mockRes.resume = vi.fn();
-    // 异步触发，模拟真实网络行为
+    mockRes.pipe = vi.fn();  // 500 时不应该被调用，但提供以防万一
     setImmediate(() => {
       callback(mockRes);
       mockRes.emit('end');
     });
-    // 返回一个 mock request（可 destroy）
     const mockReq = new EventEmitter();
     mockReq.destroy = vi.fn();
     mockReq.setTimeout = vi.fn();
@@ -30,6 +30,20 @@ vi.mock('node:https', () => {
 });
 
 import https from 'node:https';
+
+/**
+ * 创建 mock 响应流（200/206），含 pipe 方法
+ * 数据通过 PassThrough 流写入 writeStream，模拟真实 HTTP 响应行为
+ */
+function createMockResponse(content: Buffer, statusCode = 200): any {
+  const stream = new PassThrough();
+  stream.statusCode = statusCode;
+  stream.resume = vi.fn();
+  setImmediate(() => {
+    stream.end(content);
+  });
+  return stream;
+}
 
 describe('DownloadManager', () => {
   let registry: MirrorRegistry;
@@ -97,7 +111,7 @@ describe('DownloadManager - 多镜像轮询', () => {
   });
 
   it('所有镜像都失败时返回 failure', async () => {
-    // mock https.get 默认返回 500（在 beforeEach 中设置）
+    // mock https.get 默认返回 500（在 vi.mock 中设置）
     const destPath = join(tmpDir, 'app.exe');
     const result = await manager.download(
       'https://github.com/test/repo/releases/download/v1.0/app.exe',
@@ -112,20 +126,13 @@ describe('DownloadManager - 多镜像轮询', () => {
   }, 10000);
 
   it('镜像下载成功且 SHA512 匹配时返回 success', async () => {
-    // 准备正确内容 + 正确 hash
     const content = Buffer.from('fake exe content');
     const expectedHash = createHash('sha512').update(content).digest('base64');
 
-    // mock https.get 返回 200 + 内容
+    // mock https.get 返回 200 + PassThrough 流（含 pipe 方法）
     vi.mocked(https.get).mockImplementationOnce(((_url: string, _opts: any, callback: (res: any) => void) => {
-      const mockRes = new EventEmitter();
-      mockRes.statusCode = 200;
-      mockRes.resume = vi.fn();
-      setImmediate(() => {
-        callback(mockRes);
-        mockRes.emit('data', content);
-        mockRes.emit('end');
-      });
+      const mockRes = createMockResponse(content, 200);
+      setImmediate(() => callback(mockRes));
       const mockReq = new EventEmitter();
       mockReq.destroy = vi.fn();
       mockReq.setTimeout = vi.fn();
@@ -144,24 +151,16 @@ describe('DownloadManager - 多镜像轮询', () => {
   }, 10000);
 
   it('下载成功但 SHA512 不匹配时切下一个镜像', async () => {
-    // 第一个镜像返回错误内容（hash 不匹配）
     const wrongContent = Buffer.from('wrong content');
-    // 第二个镜像返回正确内容
     const correctContent = Buffer.from('correct exe content');
     const expectedHash = createHash('sha512').update(correctContent).digest('base64');
 
     let callCount = 0;
     vi.mocked(https.get).mockImplementation(((_url: string, _opts: any, callback: (res: any) => void) => {
       callCount++;
-      const mockRes = new EventEmitter();
-      mockRes.statusCode = 200;
-      mockRes.resume = vi.fn();
       const content = callCount === 1 ? wrongContent : correctContent;
-      setImmediate(() => {
-        callback(mockRes);
-        mockRes.emit('data', content);
-        mockRes.emit('end');
-      });
+      const mockRes = createMockResponse(content, 200);
+      setImmediate(() => callback(mockRes));
       const mockReq = new EventEmitter();
       mockReq.destroy = vi.fn();
       mockReq.setTimeout = vi.fn();
