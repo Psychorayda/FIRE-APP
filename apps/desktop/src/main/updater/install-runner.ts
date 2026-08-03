@@ -6,6 +6,7 @@ import { app } from 'electron';
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { closeAppDatabase } from '../db-manager.js';
 
 export class InstallRunner {
   /**
@@ -13,21 +14,32 @@ export class InstallRunner {
    * Run installer and restart app
    *
    * 流程：
-   * 1. 写临时 .bat 脚本到 %TEMP%
+   * 1. 同步关闭数据库（不依赖 before-quit 钩子，确保数据落盘）
+   * 2. 写临时 .bat 脚本到 %TEMP%
    *    - 等 2 秒确保应用完全退出（释放 exe 文件锁）
    *    - 静默执行 NSIS 安装包（/S）
    *    - 等 1 秒确保安装完成
    *    - 重启应用
    *    - 自删脚本
-   * 2. spawn .bat（detached，脱离父进程）
-   * 3. app.quit()（走 before-quit 钩子，正确关闭数据库）
+   * 3. spawn .bat（detached，脱离父进程）
+   * 4. app.quit()
    *
    * 关键改进 vs 旧方案：
-   * - 用 app.quit() 而非 app.exit(0) → 走 before-quit → closeAppDatabase() 正确执行
+   * - 安装前同步关闭数据库 → 不依赖 before-quit → 数据一定落盘
+   * - 用 app.quit() 而非 app.exit(0) → 仍走 before-quit（但数据库已关闭，是幂等的）
    * - 批处理独立运行，应用退出后 NSIS 才开始 → exe 不被锁定
    * - 安装完成后批处理自动重启应用
    */
   run(installerPath: string): void {
+    // 0. 同步关闭数据库（关键：不依赖 before-quit 钩子）
+    //    before-quit 在批处理退出场景下可能不可靠（时序竞争）
+    //    这里直接关闭，确保 WAL checkpoint + close 一定执行
+    try {
+      closeAppDatabase();
+    } catch {
+      // 数据库关闭失败不阻塞安装流程
+    }
+
     // 1. 获取应用 exe 路径（重启用）
     const appPath = app.getPath('exe');
     // 2. 临时批处理脚本路径
@@ -59,7 +71,7 @@ del "%~f0"
     });
     child.unref();
 
-    // 5. 退出应用（走 before-quit 钩子，确保数据库正确关闭）
+    // 5. 退出应用（before-quit 会再次调用 closeAppDatabase，但已是幂等的）
     app.quit();
   }
 }
