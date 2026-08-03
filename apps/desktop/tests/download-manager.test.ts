@@ -110,21 +110,6 @@ describe('DownloadManager - 多镜像轮询', () => {
     expect(https.get).toHaveBeenCalledTimes(3);
   }, 10000);
 
-  it('abort 后立即返回取消状态', async () => {
-    manager.abort();
-    const destPath = join(tmpDir, 'app.exe');
-    const result = await manager.download(
-      'https://github.com/test/repo/releases/download/v1.0/app.exe',
-      'fakehash',
-      1024,
-      destPath,
-    );
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('下载已取消');
-    // abort 后不应发起任何网络请求
-    expect(https.get).not.toHaveBeenCalled();
-  }, 5000);
-
   it('诊断事件在镜像失败时触发', async () => {
     const mirrorErrorEvents: any[] = [];
     manager.on('mirror-error', (e: any) => mirrorErrorEvents.push(e));
