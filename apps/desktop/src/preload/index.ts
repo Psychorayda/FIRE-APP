@@ -8,6 +8,19 @@ const dataAccess = {
   // 数据库管理 / Database
   initDatabase: () => ipcRenderer.invoke('db:init'),
   closeDatabase: () => ipcRenderer.invoke('db:close'),
+  // 降级重建通知（main → renderer 单向推送）
+  // Corrupted-recovered notification (main → renderer one-way push)
+  onCorruptedRecovered: (callback: (info: { backupPath: string; timestamp: number }) => void) => {
+    const handler = (_event: unknown, payload: string) => {
+      try {
+        callback(JSON.parse(payload));
+      } catch {
+        // payload 解析失败忽略
+      }
+    };
+    ipcRenderer.on('db:corrupted-recovered', handler);
+    return () => ipcRenderer.removeListener('db:corrupted-recovered', handler);
+  },
 
   // 用户 / User
   user: {
