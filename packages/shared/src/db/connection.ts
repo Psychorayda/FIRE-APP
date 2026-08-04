@@ -17,6 +17,9 @@ export function createDatabase(path: string): DatabaseType {
   // 文件数据库开启WAL模式（内存数据库不支持WAL，会静默忽略）
   if (path !== ':memory:') {
     db.pragma('journal_mode = WAL');
+    // busy_timeout: 遇到锁时自动重试 5s，消化杀毒扫描/文件句柄延迟释放等瞬时锁
+    // busy_timeout: auto-retry 5s on lock, absorbs transient locks from AV scans / handle release delay
+    db.pragma('busy_timeout = 5000');
   }
 
   return db;
