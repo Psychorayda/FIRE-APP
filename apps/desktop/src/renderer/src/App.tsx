@@ -7,11 +7,13 @@ import { ErrorBoundary } from './components/base/ErrorBoundary.js';
 import { UpdateDialog } from './components/auxiliary/UpdateDialog.js';
 import { router } from './router/index.js';
 import { useAppStore } from './stores/app-store.js';
+import { useToastStore } from './stores/toast-store.js';
 import { useUpdateStore } from './stores/update-store.js';
 
 export default function App() {
   const initialize = useAppStore((s) => s.initialize);
   const syncUpdateStatus = useUpdateStore((s) => s.syncStatus);
+  const showError = useToastStore((s) => s.showError);
 
   useEffect(() => {
     initialize();
@@ -19,6 +21,18 @@ export default function App() {
     // Sync update status on startup + subscribe to main process events
     syncUpdateStatus();
   }, [initialize, syncUpdateStatus]);
+
+  // 订阅数据库降级重建事件：明确提示用户，非静默回 Onboarding
+  // Subscribe to DB degraded-rebuild event: explicit notice, not silent Onboarding redirect
+  useEffect(() => {
+    const unsubscribe = window.dataAccess.onCorruptedRecovered((info) => {
+      showError(
+        `数据库已损坏并已备份（${info.backupPath}），请联系支持恢复。当前已创建新空库。`,
+        15000,
+      );
+    });
+    return unsubscribe;
+  }, [showError]);
 
   return (
     <ErrorBoundary>
