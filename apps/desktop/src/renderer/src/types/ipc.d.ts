@@ -27,6 +27,9 @@ export interface DataAccessAPI {
   // 数据库管理 / Database
   initDatabase(): Promise<void>;
   closeDatabase(): Promise<void>;
+  // 降级重建通知（main → renderer 单向推送）
+  // Corrupted-recovered notification (main → renderer one-way push)
+  onCorruptedRecovered(callback: (info: { backupPath: string; timestamp: number }) => void): () => void;
 
   // 用户 / User
   user: {
