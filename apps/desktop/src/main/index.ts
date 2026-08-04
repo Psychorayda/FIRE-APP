@@ -93,6 +93,23 @@ function createWindow(): void {
   }
 }
 
+// 单实例锁：防止多实例竞争 DB 文件导致打开失败
+// Single-instance lock: prevent multi-instance DB contention causing open failure
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  // 第二实例：立即退出，不触碰 DB
+  app.quit();
+} else {
+  // 主实例收到 second-instance：聚焦已有窗口
+  app.on('second-instance', () => {
+    const wins = BrowserWindow.getAllWindows();
+    if (wins.length > 0) {
+      const win = wins[0];
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    }
+  });
+
 app.whenReady().then(() => {
   // 0. 固定 userData 路径（必须在 initDatabase 之前，因为数据库路径依赖 userData）
   // Fix userData path (must run before initDatabase since DB path depends on userData)
@@ -152,3 +169,4 @@ app.on('before-quit', () => {
   debugLog('before-quit: database closed');
   updateManager?.destroy();
 });
+}
