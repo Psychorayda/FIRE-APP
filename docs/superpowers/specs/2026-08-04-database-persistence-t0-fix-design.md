@@ -75,15 +75,18 @@ catch (err) {
 
 | 场景 | 旧行为（危险） | 新行为（安全） |
 |------|----------------|----------------|
-| `createDatabase` 抛错 | 删除文件 + 重建空库 | **重抛异常**，应用显示错误页，文件原样保留 |
+| `createDatabase` 抛错 | 删除文件 + 重建空库 | **重抛异常**，应用显示错误页，文件原样保留（**绝不碰 `-wal`/`-shm`**，WAL 含未 checkpoint 写入，SQLite 下次打开自动 replay 恢复） |
 | `integrity_check` 非 'ok' | 重命名 + 删 WAL + 重建 | **仅记录警告**，继续使用（SQLite 多数异常可读）；若后续 schema 初始化失败再降级 |
 | `initSchema` 抛错 | 删除文件 + 重建 | 重抛异常，文件保留 |
+
+**WAL 保护原则**：正常打开失败重抛时，**绝不删除 `-wal`/`-shm` 文件**。WAL 含未 checkpoint 的用户写入，SQLite 下次成功打开时会自动 replay 恢复。删除 WAL = 丢失未 checkpoint 数据。仅在降级重建（主库已备份为 `.corrupted-<ts>`）后才清理 `-wal`/`-shm`。
 
 降级策略（仅当确需重建时）：
 - 重命名原文件为 `fire.db.corrupted-<timestamp>`（**保留数据**供事后恢复）
 - 删除残留的 `-wal`/`-shm`（此时主库已备份，WAL 无意义）
 - 创建新库
 - **大声告警**写日志 + 主进程 console.error
+- **通过 IPC 通知 renderer 显示明确提示**（非静默回 Onboarding）："数据库已损坏并已备份为 `.corrupted-<ts>`，请联系支持恢复数据。当前已创建新空库。"——避免用户误以为"又丢数据"
 - 此降级仅在"打开成功但 schema 初始化失败"且"确认是结构损坏"时触发，不在"打开抛错"时触发（打开抛错多为瞬时锁，应让用户重试）
 
 ### 2. 单实例锁
@@ -115,24 +118,50 @@ catch (err) {
 - `install-runner.ts` 安装前同步关闭：保留，正确。
 - `before-quit` / `window-all-closed` 双重关闭：保留（`closeAppDatabase` 幂等）。
 
+### 6. `busy_timeout` 防瞬时锁（补强）
+
+[connection.ts](file:///workspace/packages/shared/src/db/connection.ts) 的 `createDatabase()` 当前未设 `busy_timeout`，better-sqlite3 默认 `0`，任何瞬时锁（杀毒扫描、文件句柄延迟释放）立即抛 `SQLITE_BUSY`。spec 已移除"打开失败删库"，但瞬时锁会让用户频繁看到"数据库打开失败"错误页，体验差且易误判。
+
+修复：在 `createDatabase()` 的 `journal_mode = WAL` 之后加 `db.pragma('busy_timeout = 5000')`，让 SQLite 遇到锁自动重试 5 秒，消化 99% 瞬时锁。该改动在 shared 层，对所有调用方（主进程 + 测试）生效，零副作用。
+
+### 7. 降级重建 IPC 通知（补强）
+
+降级重建后若静默回 Onboarding，用户会误以为"又丢数据"。新增 IPC 通道让 main 主动通知 renderer：
+
+- `db:corrupted-recovered` 事件（main → renderer，单向推送）：payload 含 `{ backupPath, timestamp }`
+- renderer 收到后通过 `useToastStore.showError` 显示明确提示："数据库已损坏并已备份为 `fire.db.corrupted-<ts>`，请联系支持恢复。当前已创建新空库。"
+- preload 暴露 `window.dataAccess.onCorruptedRecovered(callback)` 订阅
+
+仅降级路径触发，正常启动零开销。
+
 ## 架构
 
 ```
+packages/shared/src/db/
+└── connection.ts         (改造：加 busy_timeout = 5000)
+
 apps/desktop/src/main/
 ├── index.ts              (改造：加单实例锁)
-├── db-manager.ts         (重写：安全错误处理 + 路径修正 + 日志 + 迁移)
+├── db-manager.ts         (重写：安全错误处理 + 路径修正 + 日志 + 迁移 + 降级 IPC 通知)
 └── updater/
     └── install-runner.ts (不改：已正确)
+
+apps/desktop/src/preload/
+└── index.ts              (改造：暴露 onCorruptedRecovered 订阅)
+
+apps/desktop/src/renderer/src/
+└── App.tsx               (改造：订阅 db:corrupted-recovered，显示 toast 提示)
 ```
 
 涉及文件：
 | 文件 | 改动 |
 |------|------|
-| `apps/desktop/src/main/db-manager.ts` | 重写 `initDatabase`、修正 `getDataDir`、加 `debugLog`、加迁移逻辑 |
+| `packages/shared/src/db/connection.ts` | 加 `busy_timeout = 5000` |
+| `apps/desktop/src/main/db-manager.ts` | 重写 `initDatabase`、修正 `getDataDir`、加 `debugLog`、加迁移逻辑、降级时发 IPC 事件 |
 | `apps/desktop/src/main/index.ts` | 加单实例锁 |
-| `apps/desktop/tests/db-manager.test.ts` | 新增：覆盖打开失败不删库、完整性异常不删库、迁移逻辑 |
-
-renderer / preload / IPC / shared 层**零改动**。
+| `apps/desktop/src/preload/index.ts` | 暴露 `onCorruptedRecovered` 订阅 |
+| `apps/desktop/src/renderer/src/App.tsx` | 订阅降级事件，显示 toast |
+| `apps/desktop/tests/db-manager.test.ts` | 新增：覆盖打开失败不删库、完整性异常不删库、WAL 保留、迁移逻辑、busy_timeout |
 
 ## 数据流
 
@@ -158,11 +187,13 @@ app.whenReady
 
 ```
 initDatabase
-  → createDatabase（抛 SQLITE_BUSY / EPERM）
+  → createDatabase（busy_timeout 自动重试 5s）
+    → 5s 内锁释放 → 成功打开 → 正常流程
+    → 5s 仍锁 → 抛 SQLITE_BUSY
   → 记日志：打开失败 + 错误
-  → 重抛异常（不删文件！）
+  → 重抛异常（不删文件，不碰 -wal/-shm！）
   → 应用显示"数据库打开失败，请关闭其他实例或杀毒软件后重试"错误页
-  → 用户重试 → 成功打开 → 数据仍在
+  → 用户重试 → 成功打开 → WAL 自动 replay → 数据仍在
 ```
 
 ### 异常启动（确实损坏）
@@ -174,7 +205,13 @@ initDatabase
   → 记日志：完整性异常 + 原始返回
   → 尝试 initSchema
     → 若成功：继续用（多数情况可读）
-    → 若失败：降级 → renameSync 备份 → 新建 → 告警
+    → 若失败：降级
+        → renameSync 备份为 fire.db.corrupted-<ts>
+        → 删除 -wal/-shm（主库已备份）
+        → 新建空库
+        → 告警日志 + console.error
+        → IPC 推送 db:corrupted-recovered 事件
+        → renderer 显示 toast："数据库已损坏并备份，请联系支持恢复"
 ```
 
 ## 测试
@@ -184,10 +221,16 @@ initDatabase
 用 `:memory:` 与临时文件验证：
 
 1. **打开成功 + 完整性 ok** → 正常返回，日志含 users 行数。
-2. **createDatabase 抛错**（mock 或指向不可写路径）→ `initDatabase` 抛错，**原文件未被删除**。
+2. **createDatabase 抛错**（mock 或指向不可写路径）→ `initDatabase` 抛错，**原文件未被删除**，**`-wal`/`-shm` 未被删除**。
 3. **integrity_check 非 ok**（mock pragma 返回非 ok）→ 不抛错、不删库、记警告日志。
-4. **迁移逻辑**：旧路径有库、新路径无库 → 迁移后新路径可读、旧路径已清。
-5. **单实例锁**：第二实例 `requestSingleInstanceLock` 返回 false → quit。
+4. **降级重建**（initSchema 抛错）→ 原库重命名为 `.corrupted-<ts>`（保留），新库创建，IPC `db:corrupted-recovered` 事件被发送。
+5. **迁移逻辑**：旧路径有库、新路径无库 → copy→验证→delete 后新路径可读、旧路径已清；迁移失败时回退旧路径。
+6. **单实例锁**：第二实例 `requestSingleInstanceLock` 返回 false → quit。
+7. **busy_timeout**：`createDatabase` 后 `db.pragma('busy_timeout')` 返回 5000。
+
+### shared 层测试（`packages/shared/tests/db/connection.test.ts` 补充）
+
+- `createDatabase` 后 `busy_timeout = 5000`、`journal_mode = 'wal'`、`foreign_keys = 1`。
 
 ### 手动验证（用户侧）
 
