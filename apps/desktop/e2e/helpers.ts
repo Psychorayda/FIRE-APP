@@ -3,9 +3,14 @@
 
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
 import { existsSync, mkdirSync, rmSync, readFileSync, createWriteStream } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import https from 'node:https';
+
+// ESM 下 __dirname 不存在，用 import.meta.url 等效替代
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // 最新 release 的 portable exe 下载地址（更新版本号即可切换）
 const RELEASE_TAG = 'v0.1.1-dev.74';
