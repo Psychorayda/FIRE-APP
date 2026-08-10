@@ -7,9 +7,9 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 import https from 'node:https';
 
-// dev.71 的 portable exe 下载地址
-const RELEASE_TAG = 'v0.1.1-dev.71';
-const PORTABLE_EXE_NAME = 'FIRE-App-0.1.1-dev.71-x64.exe';
+// 最新 release 的 portable exe 下载地址（更新版本号即可切换）
+const RELEASE_TAG = 'v0.1.1-dev.74';
+const PORTABLE_EXE_NAME = 'FIRE-App-0.1.1-dev.74-x64.exe';
 const DOWNLOAD_URL = `https://github.com/Psychorayda/FIRE-APP/releases/download/${RELEASE_TAG}/${PORTABLE_EXE_NAME}`;
 
 // 缓存目录（避免每次测试都重新下载 ~90MB）
